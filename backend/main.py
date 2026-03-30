@@ -24,6 +24,10 @@ app.add_middleware(
 
 client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+@app.get("/")
+def read_root():
+    return {"status": "online", "message": "AI Japanese Backend is running!"}
+
 @app.post("/api/chat/audio")
 async def process_audio_chat(
     audio: UploadFile = File(...), 
@@ -97,3 +101,9 @@ async def process_audio_chat(
         "tokens": result.get("tokens", []),
         "audio_url": real_audio_url
     }
+
+# 포트 설정 (Render는 환경 변수 PORT를 사용함)
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 10000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
