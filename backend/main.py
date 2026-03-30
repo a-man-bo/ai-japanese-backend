@@ -34,11 +34,10 @@ async def process_audio_chat(
     jlpt_level: str = Form(...),
     scenario: str = Form(...)
 ):
-    # 1. STT: Whisper로 사용자 오디오를 일본어 텍스트로 변환
+    # 1. STT: Whisper로 사용자 오디오 텍스트로 변환 (자동 언어 감지: 한국어/일본어 혼용)
     stt_response = await client.audio.transcriptions.create(
         model="whisper-1",
-        file=(audio.filename, await audio.read()),
-        language="ja"
+        file=(audio.filename, await audio.read())
     )
     user_text_ja = stt_response.text
 
