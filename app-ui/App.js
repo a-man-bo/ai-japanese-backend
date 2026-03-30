@@ -4,7 +4,7 @@ import { Audio } from 'expo-av';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ※ 주의: localhost 대신 본인 컴퓨터 IP나 ngrok/localtunnel URL을 적어야 합니다.
-const API_BASE = 'https://petite-poems-jog.loca.lt';
+const API_BASE = 'https://ai-japanese-backend.onrender.com';
 
 export default function ChatScreen() {
     const [recording, setRecording] = useState(null);
