@@ -1,0 +1,12 @@
+# 보안 파일
+.env
+*.env
+
+# 파이썬 임시 파일
+__pycache__/
+*.pyc
+
+# 엑스포/노드 관련 (나중에 앱 빌드할 때 필요)
+node_modules/
+.expo/
+dist/
