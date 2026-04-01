@@ -1,13 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, Modal, ActivityIndicator, Platform, Animated } from 'react-native';
-import { Audio } from 'expo-av';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, Modal, ActivityIndicator, Platform, Animated, ImageBackground } from 'react-native';
 import * as Speech from 'expo-speech';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFonts, DotGothic16_400Regular } from '@expo-google-fonts/dotgothic16';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-
-const API_BASE = 'https://ai-japanese-backend.onrender.com';
 
 const VOCAB_DATA = {
     N5: [
@@ -68,15 +65,7 @@ export default function App() {
     const [lastLoginTime, setLastLoginTime] = useState(Date.now());
     const [gachaResult, setGachaResult] = useState(null);
 
-    // Audio SFX
-    const [volume, setVolume] = useState(1.0);
-
-    // Chat
-    const [recording, setRecording] = useState(null);
-    const [messages, setMessages] = useState([]);
-    const [sound, setSound] = useState(null);
     const [selectedWord, setSelectedWord] = useState(null); 
-    const scrollViewRef = useRef(null);
 
     // Vocab & Settings
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -94,19 +83,6 @@ export default function App() {
     const shakeAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
-        const setupAudio = async () => {
-            try {
-                await Audio.setAudioModeAsync({
-                    allowsRecordingIOS: false,
-                    playsInSilentModeIOS: true,
-                    staysActiveInBackground: false,
-                    playThroughEarpieceAndroid: false
-                });
-            } catch (error) {}
-        };
-        setupAudio();
-        
-        loadHistory();
         loadAttendance();
         loadSettings();
 
@@ -118,12 +94,6 @@ export default function App() {
         return () => clearInterval(timer);
     }, []);
 
-    useEffect(() => {
-        saveHistory(messages);
-        if (activeTab === 'chat') {
-            setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
-        }
-    }, [messages, activeTab]);
 
     useEffect(() => {
         const saveGameState = async () => {
@@ -137,8 +107,6 @@ export default function App() {
         saveGameState();
     }, [gold, inventory, equipped, lastLoginTime]);
 
-    useEffect(() => { return sound ? () => sound.unloadAsync() : undefined; }, [sound]);
-    useEffect(() => { if (sound) sound.setVolumeAsync(volume).catch(e=>{}); }, [volume]);
     useEffect(() => { resetVocabSession(); }, [selectedLevel]);
 
     const playFxAndAnimate = async (isCorrect) => {
@@ -230,70 +198,6 @@ export default function App() {
         } catch (e) {}
     };
 
-    const loadHistory = async () => {
-        try {
-            const historyStr = await AsyncStorage.getItem('chatHistory');
-            if (historyStr) setMessages(JSON.parse(historyStr));
-            else setMessages([{ role: 'assistant', text: '何か聞いてみるか？', translated: '뭔가 물어볼 텐가? 음성을 보내봐라.', id: Date.now() }]);
-        } catch (e) {}
-    };
-    const saveHistory = async (msgs) => msgs.length > 0 && await AsyncStorage.setItem('chatHistory', JSON.stringify(msgs));
-    const clearHistory = async () => setMessages([{ role: 'assistant', text: '記憶を消去した。', translated: '기억을 지웠다.', id: Date.now() }]);
-
-    const playAudio = async (url) => {
-        if (!url) return;
-        try {
-            if (sound) await sound.unloadAsync();
-            const fullUrl = url.startsWith('http') ? url : `${API_BASE}${url}`;
-            const { sound: newSound } = await Audio.Sound.createAsync({ uri: fullUrl }, { shouldPlay: true, volume });
-            setSound(newSound);
-            await newSound.playAsync();
-        } catch (error) { alert("오디오 재생 실패"); }
-    };
-
-    const startRecording = async () => {
-        try {
-            await Audio.requestPermissionsAsync();
-            await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-            const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-            setRecording(recording);
-        } catch (err) {}
-    };
-
-    const stopRecording = async () => {
-        if (!recording) return;
-        setRecording(null);
-        await recording.stopAndUnloadAsync();
-        const uri = recording.getURI();
-
-        await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true });
-
-        const tempId = Date.now();
-        setMessages(prev => [...prev, { role: 'user', text: "詠唱中...", id: tempId, pending: true }]);
-
-        const formData = new FormData();
-        formData.append('audio', { uri, type: 'audio/m4a', name: 'audio.m4a' });
-        formData.append('jlpt_level', selectedLevel); 
-        formData.append('scenario', '프리토킹'); 
-
-        try {
-            const res = await fetch(`${API_BASE}/api/chat/audio`, { method: 'POST', body: formData });
-            const data = await res.json();
-            setMessages(prev => {
-                const newHistory = [...prev];
-                newHistory[newHistory.length - 1] = {
-                    id: tempId, role: 'user', text: data.user_text_recognized, correction: data.correction, pending: false,
-                };
-                newHistory.push({
-                    id: Date.now() + 1, role: 'assistant', text: data.assistant_reply_jp, translated: data.assistant_reply_ko, tokens: data.tokens, audio_url: data.audio_url,
-                });
-                return newHistory;
-            });
-            if(data.audio_url) playAudio(data.audio_url);
-        } catch (err) {
-            setMessages(prev => prev.filter(m => m.id !== tempId));
-        }
-    };
 
     // ========================================
     // VOCAB LOGIC V9 JRPG Edition
@@ -475,8 +379,7 @@ export default function App() {
                         </View>
                     ) : (
                         <View style={styles.normalHeader}>
-                            <Text style={styles.headerTitlePixel}>{activeTab === 'chat' ? '대화(단어검색)' : '기록의 룬'}</Text>
-                            {activeTab === 'chat' && <TouchableOpacity onPress={clearHistory}><Text style={[styles.pixelFontSm, {color:'#ff5252'}]}>비우기</Text></TouchableOpacity>}
+                            <Text style={styles.headerTitlePixel}>기록의 룬</Text>
                         </View>
                     )}
                 </View>
@@ -484,39 +387,6 @@ export default function App() {
                 {/* Main Content Area Wrapped with Shake Animation */}
                 <Animated.View style={[styles.screenArea, { transform: [{ translateX: shakeAnim }] }]}>
                     
-                    {/* ===== CHAT TAB ===== */}
-                    {activeTab === 'chat' && (
-                        <View style={{flex: 1}}>
-                            <ScrollView ref={scrollViewRef} contentContainerStyle={styles.scrollContent}>
-                                {messages.map((msg) => {
-                                    const isAi = msg.role === 'assistant';
-                                    return (
-                                        <View key={msg.id} style={isAi ? styles.aiBubbleWrapper : styles.userBubbleWrapper}>
-                                            <View style={isAi ? styles.bubbleAi : styles.bubbleUser}>
-                                                {msg.pending ? (
-                                                    <Text style={[styles.chatText, {color:isAi?'#fff':'#000'}]}>詠唱中...</Text>
-                                                ) : <Text style={[styles.chatText, {color:isAi?'#fff':'#000'}]}>{msg.text}</Text>}
-                                            </View>
-                                            
-                                            {isAi && msg.audio_url && (
-                                                <TouchableOpacity style={styles.playBtn} onPress={() => playAudio(msg.audio_url)}>
-                                                    <Text style={{fontSize:16}}>🔊</Text>
-                                                </TouchableOpacity>
-                                            )}
-                                            {isAi && msg.translated && <Text style={styles.chatDimText}>{msg.translated}</Text>}
-                                            {!isAi && msg.correction && <Text style={styles.chatCorrectionText}>💡 {msg.correction}</Text>}
-                                        </View>
-                                    );
-                                })}
-                            </ScrollView>
-                            <View style={styles.chatInputArea}>
-                                <TouchableOpacity style={[styles.micBtn, recording && styles.micBtnRec]} onPressIn={startRecording} onPressOut={stopRecording}>
-                                    <Text style={[styles.pixelFontLg, {color:'#fff'}]}>{recording ? "마이크 집중 중... 손 떼기" : "🎙️ 주문 영창 (누르고 말하기)"}</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    )}
-
                     {/* ===== VOCAB TAB V9 JRPG ===== */}
                     {activeTab === 'vocab' && (
                         <ScrollView contentContainerStyle={styles.vocabTabWrapper}>
@@ -593,27 +463,29 @@ export default function App() {
 
                     {/* ===== TOWN TAB ===== */}
                     {activeTab === 'town' && (
-                        <ScrollView contentContainerStyle={{padding: 20, paddingBottom: 150}}>
-                            <View style={styles.townHeader}>
-                                <Text style={[styles.pixelFontLg, {fontSize: 22, color:'#fff'}]}>🏰 거점 마을</Text>
-                                <View style={styles.goldBox}>
-                                    <Text style={[styles.pixelFontLg, {color:'#ffeb3b', fontSize: 20}]}>{gold} G</Text>
-                                    <Text style={[styles.pixelFontSm, {color:'#aaa', marginTop:2}]}>(1분당 1G 누적)</Text>
+                        <ImageBackground source={require('./assets/town_bg.png')} style={{flex: 1}} imageStyle={{opacity: 0.8, resizeMode: 'cover'}}>
+                            <ScrollView contentContainerStyle={{padding: 20, paddingBottom: 150}}>
+                                <View style={styles.townHeader}>
+                                    <Text style={[styles.pixelFontLg, {fontSize: 22, color:'#fff', textShadowColor: '#000', textShadowRadius: 6, textShadowOffset: {width: 2, height: 2}}]}>🏰 거점 마을</Text>
+                                    <View style={styles.goldBox}>
+                                        <Text style={[styles.pixelFontLg, {color:'#ffeb3b', fontSize: 20}]}>{gold} G</Text>
+                                        <Text style={[styles.pixelFontSm, {color:'#aaa', marginTop:2}]}>(1분당 1G 누적)</Text>
+                                    </View>
                                 </View>
-                            </View>
 
-                            <View style={styles.shopCard}>
-                                <Text style={[styles.pixelFontLg, {fontSize: 20, color:'#ffeb3b', marginBottom: 15, textAlign:'center'}]}>🛍️ 로토의 장비상점</Text>
-                                <Text style={[styles.pixelFontSm, {color:'#aaa', textAlign:'center', marginBottom: 20, lineHeight:20}]}>
-                                    1회 뽑기: 100 G{'\n'}
-                                    전투를 통해 골드를 모아 전설의 장비에 도전하라!
-                                </Text>
-                                
-                                <TouchableOpacity style={styles.gachaBtn} onPress={drawItem}>
-                                    <Text style={styles.gachaBtnText}>장비 뽑기 (100G)</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </ScrollView>
+                                <View style={styles.shopCard}>
+                                    <Text style={[styles.pixelFontLg, {fontSize: 20, color:'#ffeb3b', marginBottom: 15, textAlign:'center'}]}>🛍️ 로토의 장비상점</Text>
+                                    <Text style={[styles.pixelFontSm, {color:'#ddd', textAlign:'center', marginBottom: 20, lineHeight:20}]}>
+                                        1회 뽑기: 100 G{'\n'}
+                                        전투를 통해 골드를 모아 전설의 장비에 도전하라!
+                                    </Text>
+                                    
+                                    <TouchableOpacity style={styles.gachaBtn} onPress={drawItem}>
+                                        <Text style={styles.gachaBtnText}>장비 뽑기 (100G)</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </ScrollView>
+                        </ImageBackground>
                     )}
 
                     {/* ===== PROFILE TAB ===== */}
@@ -699,10 +571,7 @@ export default function App() {
 
                 {/* Bottom Navigation */}
                 <View style={styles.bottomNav}>
-                    <TouchableOpacity style={[styles.navItem, activeTab === 'chat' && styles.navItemActive]} onPress={() => setActiveTab('chat')}>
-                        <Text style={[styles.navText, activeTab === 'chat' && styles.navTextActive]}>💬 NPC 대화</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[styles.navItem, styles.navItemMiddle, activeTab === 'vocab' && styles.navItemActive]} onPress={() => setActiveTab('vocab')}>
+                    <TouchableOpacity style={[styles.navItem, activeTab === 'vocab' && styles.navItemActive]} onPress={() => setActiveTab('vocab')}>
                         <Text style={[styles.navText, activeTab === 'vocab' && styles.navTextActive]}>⚔️ 명예 전투</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={[styles.navItem, styles.navItemMiddle, activeTab === 'town' && styles.navItemActive]} onPress={() => setActiveTab('town')}>
@@ -847,21 +716,6 @@ const styles = StyleSheet.create({
     continueBtn: { backgroundColor: '#ffeb3b', borderWidth: 4, borderColor: '#fff', paddingVertical: 15, marginTop: 10, alignItems: 'center' },
 
     // ========================================
-    // CHAT SCREEN (Now NPC Chat System)
-    // ========================================
-    scrollContent: { padding: 15, paddingBottom: 20 },
-    userBubbleWrapper: { alignSelf: 'flex-end', marginVertical: 6, maxWidth: '80%' },
-    aiBubbleWrapper: { alignSelf: 'flex-start', marginVertical: 6, maxWidth: '80%', flexDirection: 'row', alignItems: 'flex-end' },
-    bubbleUser: { backgroundColor: '#d4d4d4', padding: 12, borderWidth: 3, borderColor: '#fff' },
-    bubbleAi: { backgroundColor: '#0a0a14', padding: 12, borderWidth: 3, borderColor: '#fff' },
-    chatText: { fontSize: 16, lineHeight: 22, fontWeight: '500' },
-    chatDimText: { fontFamily: FONT_PIXEL, fontSize: 13, color: '#888', marginTop: 5 },
-    chatCorrectionText: { fontFamily: FONT_PIXEL, fontSize: 13, color: '#ff5252', marginTop: 5 },
-    chatInputArea: { padding: 15, paddingBottom: 30, backgroundColor: 'transparent' },
-    micBtn: { backgroundColor: '#0a0a14', padding: 15, borderWidth: 4, borderColor: '#fff', alignItems: 'center' },
-    micBtnRec: { backgroundColor: '#ff1e1e' },
-
-    // ========================================
     // CALENDAR TAB (Quest Log)
     // ========================================
     calendarContainer: { backgroundColor: '#0a0a14', borderWidth: 4, borderColor: '#fff', padding: 20 },
@@ -892,8 +746,8 @@ const styles = StyleSheet.create({
     // TOWN & PROFILE STYLES
     // ========================================
     townHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-    goldBox: { backgroundColor: '#111', padding: 10, borderWidth: 2, borderColor: '#fff', alignItems: 'center' },
-    shopCard: { backgroundColor: '#0a0a14', borderWidth: 4, borderColor: '#ffeb3b', padding: 25, marginTop: 10, alignItems: 'center' },
+    goldBox: { backgroundColor: 'rgba(17, 17, 17, 0.7)', padding: 10, borderWidth: 2, borderColor: '#fff', alignItems: 'center' },
+    shopCard: { backgroundColor: 'rgba(10, 10, 20, 0.85)', borderWidth: 4, borderColor: '#ffeb3b', padding: 25, marginTop: 10, alignItems: 'center' },
     gachaBtn: { backgroundColor: '#00bcd4', borderWidth: 4, borderColor: '#fff', paddingVertical: 15, paddingHorizontal: 30, marginTop: 10 },
     gachaBtnText: { fontFamily: FONT_PIXEL, fontSize: 18, color: '#fff', fontWeight: 'bold' },
 
