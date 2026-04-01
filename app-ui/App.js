@@ -1,73 +1,75 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, Modal, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, Modal, ActivityIndicator, Platform, Animated } from 'react-native';
 import { Audio } from 'expo-av';
+import * as Speech from 'expo-speech';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFonts, DotGothic16_400Regular } from '@expo-google-fonts/dotgothic16';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const API_BASE = 'https://ai-japanese-backend.onrender.com';
 
 const VOCAB_DATA = {
     N5: [
-        { word: "行く", reading: "いく", meaning: "가다" },
-        { word: "食べる", reading: "たべる", meaning: "먹다" },
-        { word: "飲む", reading: "のむ", meaning: "마시다" },
-        { word: "水", reading: "みず", meaning: "물" },
-        { word: "本", reading: "ほん", meaning: "책" },
-        { word: "猫", reading: "ねこ", meaning: "고양이" },
-        { word: "犬", reading: "いぬ", meaning: "개" }
+        { word: "行く", reading: "いく", meaning: "가다", exJp: "明日、学校へ行く。", exKo: "내일, 학교에 간다." },
+        { word: "食べる", reading: "たべる", meaning: "먹다", exJp: "朝ごはんを食べる。", exKo: "아침밥을 먹는다." },
+        { word: "飲む", reading: "のむ", meaning: "마시다", exJp: "冷たい水を飲む。", exKo: "차가운 물을 마신다." },
+        { word: "水", reading: "みず", meaning: "물", exJp: "コップに水を入れる。", exKo: "컵에 물을 넣는다." },
+        { word: "本", reading: "ほん", meaning: "책", exJp: "図書館で本を借りる。", exKo: "도서관에서 책을 빌린다." },
+        { word: "猫", reading: "ねこ", meaning: "고양이", exJp: "白い猫が寝ている。", exKo: "하얀 고양이가 자고 있다." },
+        { word: "犬", reading: "いぬ", meaning: "개", exJp: "公園で犬と遊ぶ。", exKo: "공원에서 개와 논다." }
     ],
     N4: [
-        { word: "都合", reading: "つごう", meaning: "사정" },
-        { word: "約束", reading: "やくそく", meaning: "약속" },
-        { word: "準備", reading: "じゅんび", meaning: "준비" },
-        { word: "連絡", reading: "れんらく", meaning: "연락" },
-        { word: "趣味", reading: "しゅみ", meaning: "취미" },
-        { word: "説明", reading: "せつめい", meaning: "설명" }
+        { word: "都合", reading: "つごう", meaning: "사정", exJp: "明日は都合が悪いです。", exKo: "내일은 사정이 안 좋습니다." },
+        { word: "約束", reading: "やくそく", meaning: "약속", exJp: "友達と約束をした。", exKo: "친구와 약속을 했다." },
+        { word: "準備", reading: "じゅんび", meaning: "준비", exJp: "旅行の準備をする。", exKo: "여행 준비를 한다." },
+        { word: "連絡", reading: "れんらく", meaning: "연락", exJp: "後でまた連絡します。", exKo: "나중에 다시 연락할게요." },
+        { word: "趣味", reading: "しゅみ", meaning: "취미", exJp: "私の趣味は読書です。", exKo: "내 취미는 독서입니다." },
+        { word: "説明", reading: "せつめい", meaning: "설명", exJp: "ルールを詳しく説明する。", exKo: "규칙을 자세히 설명한다." }
     ],
     N3: [
-        { word: "条件", reading: "じょうけん", meaning: "조건" },
-        { word: "感情", reading: "かんじょう", meaning: "감정" },
-        { word: "結果", reading: "けっか", meaning: "결과" },
-        { word: "直接", reading: "ちょくせつ", meaning: "직접" },
-        { word: "我慢", reading: "がまん", meaning: "참음" },
-        { word: "理解", reading: "りかい", meaning: "이해" }
+        { word: "条件", reading: "じょうけん", meaning: "조건", exJp: "厳しい条件を出す。", exKo: "엄격한 조건을 내세운다." },
+        { word: "感情", reading: "かんじょう", meaning: "감정", exJp: "自分の感情を抑える。", exKo: "자신의 감정을 억누른다." },
+        { word: "結果", reading: "けっか", meaning: "결과", exJp: "良い結果が出る。", exKo: "좋은 결과가 나오다." },
+        { word: "直接", reading: "ちょくせつ", meaning: "직접", exJp: "社長に直接話す。", exKo: "사장님에게 직접 이야기하다." },
+        { word: "我慢", reading: "がまん", meaning: "참음", exJp: "これ以上我慢できない。", exKo: "더 이상 참을 수 없다." },
+        { word: "理解", reading: "りかい", meaning: "이해", exJp: "状況をよく理解する。", exKo: "상황을 잘 이해하다." }
     ],
     N2: [
-        { word: "影響", reading: "えいきょう", meaning: "영향" },
-        { word: "環境", reading: "かんきょう", meaning: "환경" },
-        { word: "評価", reading: "ひょうか", meaning: "평가" },
-        { word: "特徴", reading: "とくちょう", meaning: "특징" },
-        { word: "現象", reading: "げんしょう", meaning: "현상" },
-        { word: "対策", reading: "たいさく", meaning: "대책" }
+        { word: "影響", reading: "えいきょう", meaning: "영향", exJp: "環境に影響を与える。", exKo: "환경에 영향을 주다." },
+        { word: "環境", reading: "かんきょう", meaning: "환경", exJp: "自然環境を守る。", exKo: "자연 환경을 지키다." },
+        { word: "評価", reading: "ひょうか", meaning: "평가", exJp: "高い評価を受ける。", exKo: "높은 평가를 받다." },
+        { word: "特徴", reading: "とくちょう", meaning: "특징", exJp: "デザインに特徴がある。", exKo: "디자인에 특징이 있다." },
+        { word: "現象", reading: "げんしょう", meaning: "현상", exJp: "不思議な現象が起きる。", exKo: "신비스런 현상이 일어나다." },
+        { word: "対策", reading: "たいさく", meaning: "대책", exJp: "早めの対策が必要だ。", exKo: "빠른 대책이 필요하다." }
     ],
     N1: [
-        { word: "妥協", reading: "だきょう", meaning: "타협" },
-        { word: "顕著", reading: "けんちょ", meaning: "현저함" },
-        { word: "矛盾", reading: "むじゅん", meaning: "모순" },
-        { word: "網羅", reading: "もうら", meaning: "망라" },
-        { word: "懸念", reading: "けねん", meaning: "우려" },
-        { word: "模索", reading: "もさく", meaning: "모색" }
+        { word: "妥協", reading: "だきょう", meaning: "타협", exJp: "絶対に妥協しない。", exKo: "절대로 타협하지 않는다." },
+        { word: "顕著", reading: "けんちょ", meaning: "현저함", exJp: "傾向が顕著に表れる。", exKo: "경향이 현저하게 나타난다." },
+        { word: "矛盾", reading: "むじゅん", meaning: "모순", exJp: "彼の発言には矛盾がある。", exKo: "그의 발언에는 모순이 있다." },
+        { word: "網羅", reading: "もうら", meaning: "망라", exJp: "全分野を網羅する。", exKo: "모든 분야를 망라하다." },
+        { word: "懸念", reading: "けねん", meaning: "우려", exJp: "将来への懸念を抱く。", exKo: "장래에 대한 우려를 품다." },
+        { word: "模索", reading: "もさく", meaning: "모색", exJp: "解決策を模索する。", exKo: "해결책을 모색하다." }
     ]
 };
 
 const ALL_WORDS = Object.values(VOCAB_DATA).flat();
 
-// Public sound URIs for quick feedback
-const SOUND_CORRECT_URI = 'https://www.myinstants.com/media/sounds/correct-ding.mp3';
-const SOUND_INCORRECT_URI = 'https://www.myinstants.com/media/sounds/buzzer.mp3';
-
 export default function App() {
     let [fontsLoaded] = useFonts({ DotGothic16_400Regular });
 
-    // Global
-    const [activeTab, setActiveTab] = useState('chat');
-    const [volume, setVolume] = useState(1.0);
+    const [activeTab, setActiveTab] = useState('vocab'); 
     const [attendance, setAttendance] = useState({});
 
-    // Sound Objects (Preloaded)
-    const [correctSoundUrl, setCorrectSoundUrl] = useState();
-    const [incorrectSoundUrl, setIncorrectSoundUrl] = useState();
+    // JRPG App States
+    const [gold, setGold] = useState(0);
+    const [inventory, setInventory] = useState([]);
+    const [equipped, setEquipped] = useState({ hat: null, glasses: null, top: null, bottom: null, shoes: null });
+    const [lastLoginTime, setLastLoginTime] = useState(Date.now());
+    const [gachaResult, setGachaResult] = useState(null);
+
+    // Audio SFX
+    const [volume, setVolume] = useState(1.0);
 
     // Chat
     const [recording, setRecording] = useState(null);
@@ -79,19 +81,41 @@ export default function App() {
     // Vocab & Settings
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [selectedLevel, setSelectedLevel] = useState('N5');
-    const [dailyGoal, setDailyGoal] = useState(5);
+    const [dailyGoal, setDailyGoal] = useState(10);
     const [vocabIndex, setVocabIndex] = useState(0);
-    const [vocabFeedback, setVocabFeedback] = useState(null);
+    
+    // Feedback States
+    const [vocabFeedback, setVocabFeedback] = useState(null); // 'correct' | 'incorrect'
+    const [selectedAnswer, setSelectedAnswer] = useState(null); // the exact option string clicked
     const [vocabScore, setVocabScore] = useState(0);
     const [options, setOptions] = useState([]);
+    
+    // Animation
+    const shakeAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
+        const setupAudio = async () => {
+            try {
+                await Audio.setAudioModeAsync({
+                    allowsRecordingIOS: false,
+                    playsInSilentModeIOS: true,
+                    staysActiveInBackground: false,
+                    playThroughEarpieceAndroid: false
+                });
+            } catch (error) {}
+        };
+        setupAudio();
+        
         loadHistory();
         loadAttendance();
         loadSettings();
-        // Preload sounds
-        Audio.Sound.createAsync({ uri: SOUND_CORRECT_URI }).then(({sound}) => setCorrectSoundUrl(sound)).catch(console.error);
-        Audio.Sound.createAsync({ uri: SOUND_INCORRECT_URI }).then(({sound}) => setIncorrectSoundUrl(sound)).catch(console.error);
+
+        // Idle Gold Ticker:
+        const timer = setInterval(() => {
+            setGold(prev => prev + 1);
+            setLastLoginTime(Date.now());
+        }, 60000);
+        return () => clearInterval(timer);
     }, []);
 
     useEffect(() => {
@@ -102,28 +126,39 @@ export default function App() {
     }, [messages, activeTab]);
 
     useEffect(() => {
-        return sound ? () => { sound.unloadAsync(); } : undefined;
-    }, [sound]);
+        const saveGameState = async () => {
+            try {
+                await AsyncStorage.setItem('gold', gold.toString());
+                await AsyncStorage.setItem('inventory', JSON.stringify(inventory));
+                await AsyncStorage.setItem('equipped', JSON.stringify(equipped));
+                await AsyncStorage.setItem('lastLoginTime', lastLoginTime.toString());
+            } catch(e){}
+        };
+        saveGameState();
+    }, [gold, inventory, equipped, lastLoginTime]);
 
-    useEffect(() => {
-        if (sound) sound.setVolumeAsync(volume).catch(e => console.log('Volume overflow clamped:', e));
-    }, [volume]);
+    useEffect(() => { return sound ? () => sound.unloadAsync() : undefined; }, [sound]);
+    useEffect(() => { if (sound) sound.setVolumeAsync(volume).catch(e=>{}); }, [volume]);
+    useEffect(() => { resetVocabSession(); }, [selectedLevel]);
 
-    // Reset game when level changes
-    useEffect(() => {
-        resetVocabSession();
-    }, [selectedLevel]);
-
-    const playFx = async (isCorrect) => {
+    const playFxAndAnimate = async (isCorrect) => {
         try {
             if (isCorrect) {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                if (correctSoundUrl) await correctSoundUrl.replayAsync();
             } else {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-                if (incorrectSoundUrl) await incorrectSoundUrl.replayAsync();
+                // JRPG Combat Shake (Screen Shaking on wrong answer purely!)
+                Animated.sequence([
+                    Animated.timing(shakeAnim, { toValue: 12, duration: 45, useNativeDriver: true }),
+                    Animated.timing(shakeAnim, { toValue: -12, duration: 45, useNativeDriver: true }),
+                    Animated.timing(shakeAnim, { toValue: 12, duration: 45, useNativeDriver: true }),
+                    Animated.timing(shakeAnim, { toValue: -12, duration: 45, useNativeDriver: true }),
+                    Animated.timing(shakeAnim, { toValue: 0, duration: 45, useNativeDriver: true })
+                ]).start();
             }
-        } catch (e) { console.log('SFX play err:', e); }
+        } catch (e) {
+            console.log(e);
+        }
     };
 
     const loadSettings = async () => {
@@ -132,9 +167,32 @@ export default function App() {
             const savedGoal = await AsyncStorage.getItem('dailyGoal');
             if (savedLevel) setSelectedLevel(savedLevel);
             if (savedGoal) setDailyGoal(parseInt(savedGoal, 10));
+
+            const savedGold = await AsyncStorage.getItem('gold');
+            if (savedGold) setGold(parseInt(savedGold, 10));
+            
+            const savedInv = await AsyncStorage.getItem('inventory');
+            if (savedInv) setInventory(JSON.parse(savedInv));
+
+            const savedEquip = await AsyncStorage.getItem('equipped');
+            if (savedEquip) setEquipped(JSON.parse(savedEquip));
+
+            const savedTime = await AsyncStorage.getItem('lastLoginTime');
+            const now = Date.now();
+            if (savedTime) {
+                const diffMs = now - parseInt(savedTime, 10);
+                const diffMin = Math.floor(diffMs / 60000);
+                if (diffMin > 0) {
+                    const earned = diffMin * 1;
+                    if (earned > 0) {
+                        setTimeout(() => alert(`마을 복귀!\n부재 중 쌓인 보상 ${earned}G를 획득했습니다.`), 800);
+                        setGold(g => g + earned);
+                    }
+                }
+            }
+            setLastLoginTime(now);
         } catch(e){}
     };
-
     const saveSettings = async (level, goal) => {
         setIsSettingsOpen(false);
         await AsyncStorage.setItem('targetLevel', level);
@@ -147,7 +205,14 @@ export default function App() {
         setVocabScore(0);
         setVocabIndex(0);
         setVocabFeedback(null);
+        setSelectedAnswer(null);
+        Speech.stop(); 
         generateOptions(0, selectedLevel);
+    };
+
+    const getTodayDateString = () => {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     };
 
     const loadAttendance = async () => {
@@ -156,12 +221,6 @@ export default function App() {
             if (data) setAttendance(JSON.parse(data));
         } catch (e) {}
     };
-
-    const getTodayDateString = () => {
-        const d = new Date();
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    };
-
     const markAttendanceToday = async () => {
         try {
             const today = getTodayDateString();
@@ -175,14 +234,11 @@ export default function App() {
         try {
             const historyStr = await AsyncStorage.getItem('chatHistory');
             if (historyStr) setMessages(JSON.parse(historyStr));
-            else setMessages([{ role: 'assistant', text: 'こんにちは！(안녕하세요!)', translated: '오른쪽 위 버튼으로 볼륨 조절 가능합니다.', id: Date.now() }]);
+            else setMessages([{ role: 'assistant', text: '何か聞いてみるか？', translated: '뭔가 물어볼 텐가? 음성을 보내봐라.', id: Date.now() }]);
         } catch (e) {}
     };
     const saveHistory = async (msgs) => msgs.length > 0 && await AsyncStorage.setItem('chatHistory', JSON.stringify(msgs));
-    const clearHistory = async () => setMessages([{ role: 'assistant', text: '会話をリセットしました。', translated: '대화를 초기화했습니다.', id: Date.now() }]);
-
-    const increaseVolume = () => setVolume(prev => Math.min(prev + 0.2, 2.0));
-    const decreaseVolume = () => setVolume(prev => Math.max(prev - 0.2, 0.0));
+    const clearHistory = async () => setMessages([{ role: 'assistant', text: '記憶を消去した。', translated: '기억을 지웠다.', id: Date.now() }]);
 
     const playAudio = async (url) => {
         if (!url) return;
@@ -192,7 +248,7 @@ export default function App() {
             const { sound: newSound } = await Audio.Sound.createAsync({ uri: fullUrl }, { shouldPlay: true, volume });
             setSound(newSound);
             await newSound.playAsync();
-        } catch (error) { alert("오디오 로드 실패"); }
+        } catch (error) { alert("오디오 재생 실패"); }
     };
 
     const startRecording = async () => {
@@ -210,18 +266,19 @@ export default function App() {
         await recording.stopAndUnloadAsync();
         const uri = recording.getURI();
 
+        await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true });
+
         const tempId = Date.now();
-        setMessages(prev => [...prev, { role: 'user', text: "전송 중...", id: tempId, pending: true }]);
+        setMessages(prev => [...prev, { role: 'user', text: "詠唱中...", id: tempId, pending: true }]);
 
         const formData = new FormData();
         formData.append('audio', { uri, type: 'audio/m4a', name: 'audio.m4a' });
         formData.append('jlpt_level', selectedLevel); 
-        formData.append('scenario', '프리토킹'); // Can be expanded
+        formData.append('scenario', '프리토킹'); 
 
         try {
             const res = await fetch(`${API_BASE}/api/chat/audio`, { method: 'POST', body: formData });
             const data = await res.json();
-
             setMessages(prev => {
                 const newHistory = [...prev];
                 newHistory[newHistory.length - 1] = {
@@ -235,77 +292,128 @@ export default function App() {
             if(data.audio_url) playAudio(data.audio_url);
         } catch (err) {
             setMessages(prev => prev.filter(m => m.id !== tempId));
-            alert("서버 연결 실패. (한국어/일본어 모두 가능하게 업데이트되었습니다)");
         }
     };
 
-    const renderTokens = (tokens, rawText) => {
-        if (!tokens || tokens.length === 0) return <Text style={styles.pixelText}>{rawText}</Text>;
-        return (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                {tokens.map((tok, idx) => (
-                    <TouchableOpacity key={idx} style={styles.tokenBtn} onPress={() => setSelectedWord(tok)}>
-                        <Text style={styles.pixelTextSmall}>{tok.word}</Text>
-                    </TouchableOpacity>
-                ))}
-            </View>
-        );
-    }
-
     // ========================================
-    // VOCAB LOGIC 
+    // VOCAB LOGIC V9 JRPG Edition
     // ========================================
     const generateOptions = (vIdx, level) => {
-        const correctWord = VOCAB_DATA[level][vIdx];
-        if(!correctWord) return;
-
-        // Create a unique set of incorrect meanings
-        const incorrectPool = ALL_WORDS.filter(w => w.meaning !== correctWord.meaning).map(w => w.meaning);
+        const currentWord = VOCAB_DATA[level][vIdx];
+        if(!currentWord) return;
+        
+        const incorrectPool = ALL_WORDS.filter(w => w.meaning !== currentWord.meaning).map(w => w.meaning);
         const uniqueSet = Array.from(new Set(incorrectPool));
-        
-        // Shuffle and pick 3
         const shuffledPool = uniqueSet.sort(() => 0.5 - Math.random());
-        const chosenIncorrect = shuffledPool.slice(0, 3);
         
-        // Merge & Shuffle options
-        let finalOptions = [...chosenIncorrect, correctWord.meaning];
-        finalOptions = finalOptions.sort(() => 0.5 - Math.random());
-        setOptions(finalOptions);
+        let finalOptions = [...shuffledPool.slice(0, 3), currentWord.meaning];
+        setOptions(finalOptions.sort(() => 0.5 - Math.random()));
     };
 
     const handleSelectOption = (selectedMeaning) => {
         if (vocabFeedback !== null) return; 
-
         const current = VOCAB_DATA[selectedLevel][vocabIndex];
         const isCorrect = (selectedMeaning === current.meaning);
         
+        setSelectedAnswer(selectedMeaning);
         setVocabFeedback(isCorrect ? 'correct' : 'incorrect');
-        playFx(isCorrect);
+        playFxAndAnimate(isCorrect);
         
         if (isCorrect) {
             const newScore = vocabScore + 1;
             setVocabScore(newScore);
-            if (newScore === dailyGoal) {
-                alert(`축하합니다! 하루 목표량(${dailyGoal}개) 달성! 출석 도장이 찍혔습니다.`);
-                markAttendanceToday();
+            Speech.speak(current.word, { language: 'ja', rate: 0.85 });
+            
+            if (newScore === 1) markAttendanceToday(); 
+        } else {
+            const reward = vocabScore * 10;
+            if (reward > 0) {
+                setTimeout(() => {
+                    alert(`전투 오버!\n연속 ${vocabScore}콤보 달성.\n보상으로 ${reward}G를 획득했습니다!`);
+                    setGold(g => g + reward);
+                }, 600);
             }
         }
     };
 
     const nextVocab = () => {
+        if (vocabFeedback === 'incorrect') {
+            setVocabScore(0);
+        }
         setVocabFeedback(null);
-        let nextIdx = vocabIndex + 1;
-        // Loop back if we exhausted the small list
-        if (nextIdx >= VOCAB_DATA[selectedLevel].length) nextIdx = 0; 
-        
+        setSelectedAnswer(null);
+        Speech.stop(); 
+        let nextIdx = (vocabIndex + 1) % VOCAB_DATA[selectedLevel].length;
         setVocabIndex(nextIdx);
         generateOptions(nextIdx, selectedLevel);
     };
 
+    const readLoudly = () => {
+        const current = VOCAB_DATA[selectedLevel][vocabIndex];
+        Speech.stop();
+        Speech.speak(current.word, { language: 'ja', rate: 0.85 });
+        Speech.speak(current.exJp, { language: 'ja', rate: 0.95 });
+    };
+
+    // ========================================
+    // GACHA & INVENTORY SYSTEM
+    // ========================================
+    const drawItem = () => {
+        if (gold < 100) {
+            alert('골드가 부족합니다! (100G 필요)');
+            return;
+        }
+        setGold(prev => prev - 100);
+        
+        const types = ['hat', 'glasses', 'top', 'bottom', 'shoes'];
+        const type = types[Math.floor(Math.random() * types.length)];
+        
+        const rand = Math.random();
+        let grade, color, nameObj;
+        if (rand < 0.01) { grade = 'Legendary'; color = '#ffeb3b'; nameObj = '신화의'; } 
+        else if (rand < 0.10) { grade = 'Epic'; color = '#e91e63'; nameObj = '영웅의'; }     
+        else if (rand < 0.40) { grade = 'Rare'; color = '#03a9f4'; nameObj = '희귀한'; }     
+        else { grade = 'Common'; color = '#aaa'; nameObj = '평범한'; }                         
+
+        const typeKor = {hat:'모자', glasses:'안경', top:'상의', bottom:'하의', shoes:'신발'}[type];
+        const emojis = {hat:['🧢','🎩','👑','🐶','🐱'], glasses:['🕶️','🥽','👓','😎','🧐'], top:['👕','🧥','👔','🥋','🦺'], bottom:['👖','🩳','👗','👘','🩲'], shoes:['👟','👞','🥾','👡','🩰']}[type];
+        const emoji = emojis[Math.floor(Math.random() * emojis.length)];
+
+        const newItem = { id: Date.now().toString(), type, typeKor, grade, color, name: `${nameObj} ${typeKor}`, emoji };
+        
+        setInventory(prev => [newItem, ...prev]);
+        setGachaResult(newItem);
+    };
+
+    const equipItem = (item) => {
+        setEquipped(prev => ({ ...prev, [item.type]: item }));
+    };
+    
+    const unequipItem = (type) => {
+        setEquipped(prev => ({ ...prev, [type]: null }));
+    };
+
+    const renderExampleBolded = (sentence, targetWord) => {
+        if (!sentence) return null;
+        const parts = sentence.split(targetWord);
+        if (parts.length === 1) return <Text style={styles.exJpText}>{sentence}</Text>;
+        
+        return (
+            <Text style={styles.exJpText}>
+                {parts.map((p, i) => (
+                    <React.Fragment key={i}>
+                        {p}
+                        {i < parts.length - 1 && <Text style={styles.exJpBold}>{targetWord}</Text>}
+                    </React.Fragment>
+                ))}
+            </Text>
+        );
+    }
+
     const renderCalendarGrid = () => {
         const today = new Date();
         const year = today.getFullYear();
-        const month = today.getMonth(); // 0-indexed
+        const month = today.getMonth();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
         const firstDayOfWeek = new Date(year, month, 1).getDay(); 
 
@@ -320,6 +428,7 @@ export default function App() {
             row.push(
                 <View key={`day-${day}`} style={[styles.calCell, isAttended && styles.calCellAttended]}>
                     <Text style={[styles.calText, isAttended && styles.calTextAttended]}>{day}</Text>
+                    {/* Checkmark completely removed! Relying purely on cell solid JRPG fill. */}
                 </View>
             );
             if (row.length === 7) {
@@ -334,8 +443,8 @@ export default function App() {
 
         return (
             <View style={styles.calendarContainer}>
-                <Text style={styles.calMonthTitle}>{year}년 {month + 1}월</Text>
-                <View style={styles.calRow}>
+                <Text style={styles.calTitle}>{year}年 {month + 1}月</Text>
+                <View style={[styles.calRow, {marginBottom:10}]}>
                     {['일', '월', '화', '수', '목', '금', '토'].map((wk, i) => (
                         <View key={i} style={styles.calHeaderCell}><Text style={styles.calHeaderText}>{wk}</Text></View>
                     ))}
@@ -345,294 +454,458 @@ export default function App() {
         );
     };
 
-    // ========================================
-    // RENDER WRAPPERS
-    // ========================================
-    if (!fontsLoaded) return <View style={styles.loadingContainer}><ActivityIndicator size="large" color="#0f380f" /></View>;
+    if (!fontsLoaded) return <View style={{flex:1, backgroundColor: '#000', justifyContent:'center', alignItems:'center'}}><ActivityIndicator color="#fff" /></View>;
 
+    // Pure JRPG Cosmos Space Gradient
     return (
-        <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <Text style={styles.headerTitle}>J-PHONE 3</Text>
-                <View style={styles.headerControls}>
-                    <TouchableOpacity style={styles.retroBtnSmallInfo} onPress={decreaseVolume}>
-                        <Text style={styles.pixelTextSmallInv}>VOL -</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.volText}>{Math.round(volume * 10)}</Text>
-                    <TouchableOpacity style={styles.retroBtnSmallInfo} onPress={increaseVolume}>
-                        <Text style={styles.pixelTextSmallInv}>VOL +</Text>
-                    </TouchableOpacity>
-                    {activeTab === 'chat' && <TouchableOpacity onPress={clearHistory} style={styles.retroBtnSmallErr}><Text style={styles.pixelTextSmallInv}>CLR</Text></TouchableOpacity>}
+        <LinearGradient colors={['#050814', '#151b3a', '#1e1b40']} style={styles.container}>
+            <SafeAreaView style={{flex: 1}}>
+                
+                <View style={styles.header}>
+                    {activeTab === 'vocab' ? (
+                        <View style={styles.progressHeaderObj}>
+                            <TouchableOpacity style={styles.iconBtn}><Text style={{fontSize:20, color:'#fff'}}>🪙</Text></TouchableOpacity>
+                            <View style={styles.progressBarContainer}>
+                                <View style={[styles.progressBarFill, { width: '100%', backgroundColor: '#ff9800' }]} />
+                                <Text style={styles.progressText}>COMBO {vocabScore}</Text>
+                            </View>
+                            <TouchableOpacity style={styles.iconBtn}>
+                                <Text style={{fontSize:16, color:'#ffeb3b', fontFamily:FONT_PIXEL}}>{gold} G</Text>
+                            </TouchableOpacity>
+                        </View>
+                    ) : (
+                        <View style={styles.normalHeader}>
+                            <Text style={styles.headerTitlePixel}>{activeTab === 'chat' ? '대화(단어검색)' : '기록의 룬'}</Text>
+                            {activeTab === 'chat' && <TouchableOpacity onPress={clearHistory}><Text style={[styles.pixelFontSm, {color:'#ff5252'}]}>비우기</Text></TouchableOpacity>}
+                        </View>
+                    )}
                 </View>
-            </View>
 
-            <View style={styles.screenArea}>
-                {activeTab === 'chat' && (
-                    <View style={{flex: 1}}>
-                        <ScrollView ref={scrollViewRef} contentContainerStyle={styles.scrollContent}>
-                            {messages.map((msg) => (
-                                <View key={msg.id} style={msg.role === 'user' ? styles.userBubbleWrapper : styles.aiBubbleWrapper}>
-                                    {msg.role === 'assistant' && (
-                                        <View style={styles.aiHeader}>
-                                            <Text style={styles.aiName}>▶ 相手(상대)</Text>
-                                            {msg.audio_url && (
-                                                <TouchableOpacity style={styles.retroBtnSmall} onPress={() => playAudio(msg.audio_url)}>
-                                                    <Text style={styles.pixelTextSmallInv}>재생</Text>
+                {/* Main Content Area Wrapped with Shake Animation */}
+                <Animated.View style={[styles.screenArea, { transform: [{ translateX: shakeAnim }] }]}>
+                    
+                    {/* ===== CHAT TAB ===== */}
+                    {activeTab === 'chat' && (
+                        <View style={{flex: 1}}>
+                            <ScrollView ref={scrollViewRef} contentContainerStyle={styles.scrollContent}>
+                                {messages.map((msg) => {
+                                    const isAi = msg.role === 'assistant';
+                                    return (
+                                        <View key={msg.id} style={isAi ? styles.aiBubbleWrapper : styles.userBubbleWrapper}>
+                                            <View style={isAi ? styles.bubbleAi : styles.bubbleUser}>
+                                                {msg.pending ? (
+                                                    <Text style={[styles.chatText, {color:isAi?'#fff':'#000'}]}>詠唱中...</Text>
+                                                ) : <Text style={[styles.chatText, {color:isAi?'#fff':'#000'}]}>{msg.text}</Text>}
+                                            </View>
+                                            
+                                            {isAi && msg.audio_url && (
+                                                <TouchableOpacity style={styles.playBtn} onPress={() => playAudio(msg.audio_url)}>
+                                                    <Text style={{fontSize:16}}>🔊</Text>
                                                 </TouchableOpacity>
                                             )}
+                                            {isAi && msg.translated && <Text style={styles.chatDimText}>{msg.translated}</Text>}
+                                            {!isAi && msg.correction && <Text style={styles.chatCorrectionText}>💡 {msg.correction}</Text>}
                                         </View>
-                                    )}
-                                    <View style={styles.bubbleBase}>
-                                        {msg.pending ? (
-                                            <Text style={styles.pixelText}>[ 발송중... (한국어 가능) ]</Text>
-                                        ) : msg.role === 'assistant' && msg.tokens && msg.tokens.length > 0 ? (
-                                            renderTokens(msg.tokens, msg.text)
-                                        ) : <Text style={styles.pixelText}>{msg.text}</Text>}
-                                        {msg.role === 'assistant' && msg.translated && <Text style={styles.pixelTextDim}>- {msg.translated}</Text>}
-                                        {msg.role === 'user' && msg.correction && (
-                                            <View style={styles.correctionBox}><Text style={styles.pixelTextDim}>[교정]: {msg.correction}</Text></View>
-                                        )}
-                                    </View>
-                                </View>
-                            ))}
-                        </ScrollView>
-                        <View style={styles.inputArea}>
-                            <TouchableOpacity style={[styles.retroBtnLg, recording ? styles.recordingBtn : null]} onPressIn={startRecording} onPressOut={stopRecording} activeOpacity={0.8}>
-                                <Text style={styles.pixelTextInv}>{recording ? "[듣고있음... 손떼면 발송]" : "[ 누르고 말하기 ]"}</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                )}
-
-                {activeTab === 'vocab' && (
-                    <ScrollView contentContainerStyle={{flexGrow:1, padding:10}}>
-                        <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5}}>
-                            <Text style={styles.pixelTextSmall}>현재 레벨: {selectedLevel} | 목표: {dailyGoal}개</Text>
-                            <TouchableOpacity style={styles.retroBtnSmallInfo} onPress={() => setIsSettingsOpen(true)}>
-                                <Text style={styles.pixelTextSmallInv}>[⚙️ 환경설정]</Text>
-                            </TouchableOpacity>
-                        </View>
-                        <Text style={[styles.pixelTextSmall, {alignSelf: 'flex-end', marginBottom: 10}]}>성공 횟수: {vocabScore} 회</Text>
-
-                        {/* Question Block */}
-                        <View style={styles.vocabCard}>
-                            <Text style={styles.vocabMeaning}>{VOCAB_DATA[selectedLevel][vocabIndex]?.word}</Text>
-                            {vocabFeedback !== null && <Text style={styles.vocabWordHint}>[{VOCAB_DATA[selectedLevel][vocabIndex]?.reading}]</Text>}
-                        </View>
-
-                        {/* Multiple Choice Options */}
-                        <View style={styles.optionBlock}>
-                            {options.map((opt, i) => {
-                                let btnStyle = styles.optBtn;
-                                let txtStyle = styles.optBtnText;
-                                const currentMeaning = VOCAB_DATA[selectedLevel][vocabIndex]?.meaning;
-                                
-                                if (vocabFeedback) {
-                                    if (opt === currentMeaning) {
-                                        btnStyle = [styles.optBtn, styles.optBtnCorrect];
-                                        txtStyle = [styles.optBtnText, styles.optBtnTextInv];
-                                    } else {
-                                        btnStyle = [styles.optBtn, styles.optBtnDisabled];
-                                        txtStyle = [styles.optBtnText, styles.optBtnTextDisabled];
-                                    }
-                                }
-                                
-                                return (
-                                    <TouchableOpacity key={i} style={btnStyle} disabled={vocabFeedback !== null} onPress={() => handleSelectOption(opt)}>
-                                        <Text style={txtStyle}>{i+1}. {opt}</Text>
-                                    </TouchableOpacity>
-                                );
-                            })}
-                        </View>
-                        
-                        {/* Feedback Banner */}
-                        {vocabFeedback !== null && (
-                            <View style={styles.feedbackBox}>
-                                <Text style={vocabFeedback === 'correct' ? styles.feedbackCorrect : styles.feedbackIncorrect}>
-                                    {vocabFeedback === 'correct' ? '⭕ 정답!' : '❌ 오답'} (뜻: {VOCAB_DATA[selectedLevel][vocabIndex]?.meaning})
-                                </Text>
-                                <TouchableOpacity style={[styles.retroBtnLg, {marginTop: 15}]} onPress={nextVocab}>
-                                    <Text style={styles.pixelTextInv}>[ 다음 문제 넘어가기 ▶ ]</Text>
+                                    );
+                                })}
+                            </ScrollView>
+                            <View style={styles.chatInputArea}>
+                                <TouchableOpacity style={[styles.micBtn, recording && styles.micBtnRec]} onPressIn={startRecording} onPressOut={stopRecording}>
+                                    <Text style={[styles.pixelFontLg, {color:'#fff'}]}>{recording ? "마이크 집중 중... 손 떼기" : "🎙️ 주문 영창 (누르고 말하기)"}</Text>
                                 </TouchableOpacity>
                             </View>
-                        )}
-                    </ScrollView>
-                )}
-
-                {activeTab === 'calendar' && (
-                    <View style={styles.calendarTab}>
-                        <Text style={[styles.pixelText, {alignSelf: 'center', marginBottom: 20}]}>=== 학습 결산 출석부 ===</Text>
-                        {renderCalendarGrid()}
-                        <View style={{marginTop: 30, backgroundColor: '#8bac0f', padding: 15, borderWidth: 4, borderColor: '#0f380f'}}>
-                            <Text style={styles.pixelText}>• 목표 갯수를 채우면 스탬프 획득!</Text>
-                            <Text style={styles.pixelText}>• 현재 하루 목표량: {dailyGoal} 개</Text>
                         </View>
-                    </View>
-                )}
-            </View>
+                    )}
 
-            {/* Bottom Tab Bar */}
-            <View style={styles.tabBar}>
-                <TouchableOpacity style={[styles.tabBtn, activeTab === 'chat' && styles.tabBtnActive]} onPress={() => setActiveTab('chat')}>
-                    <Text style={[styles.tabText, activeTab === 'chat' && styles.tabTextActive]}>1. 통화</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.tabBtn, activeTab === 'vocab' && styles.tabBtnActive]} onPress={() => setActiveTab('vocab')}>
-                    <Text style={[styles.tabText, activeTab === 'vocab' && styles.tabTextActive]}>2. 연습</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.tabBtn, activeTab === 'calendar' && styles.tabBtnActive]} onPress={() => setActiveTab('calendar')}>
-                    <Text style={[styles.tabText, activeTab === 'calendar' && styles.tabTextActive]}>3. 출석</Text>
-                </TouchableOpacity>
-            </View>
+                    {/* ===== VOCAB TAB V9 JRPG ===== */}
+                    {activeTab === 'vocab' && (
+                        <ScrollView contentContainerStyle={styles.vocabTabWrapper}>
+                            
+                            {/* JRPG Dialog Box */}
+                            <View style={styles.vocabCard}>
+                                <View style={{flexDirection: 'row', justifyContent:'space-between', alignItems:'flex-start', marginBottom: 5}}>
+                                    <View style={styles.levelBadge}><Text style={[styles.pixelFontSm, {color:'#fff'}]}>RANK {selectedLevel}</Text></View>
+                                    <Text style={styles.pixelFontSm}>엔카운터!</Text>
+                                </View>
+                                
+                                <Text style={styles.vocabAnswerReading}>{VOCAB_DATA[selectedLevel][vocabIndex]?.reading}</Text>
+                                <Text style={styles.vocabTargetJapanese}>{VOCAB_DATA[selectedLevel][vocabIndex]?.word}</Text>
+                                
+                                {vocabFeedback === 'correct' && (
+                                    <>
+                                        <TouchableOpacity style={styles.ttsBtn} onPress={readLoudly}>
+                                            <Text style={[styles.pixelFontSm, {color:'#000'}]}>🔊 전체 재생 마법</Text>
+                                        </TouchableOpacity>
 
-            {/* Keyword Modal */}
-            <Modal transparent={true} visible={!!selectedWord} animationType="none" onRequestClose={() => setSelectedWord(null)}>
-                <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPressOut={() => setSelectedWord(null)}>
-                    <View style={styles.modalContent}>
-                        {selectedWord && (
-                            <View style={styles.wordDetails}>
-                                <Text style={styles.wordBig}>{selectedWord.word}</Text>
-                                <Text style={styles.wordReading}>{selectedWord.reading}</Text>
-                                <View style={styles.divider} />
-                                <Text style={styles.wordMeaning}>{selectedWord.meaning}</Text>
+                                        <View style={styles.exampleBox}>
+                                            <Text style={styles.exampleBadge}>실전 예문</Text>
+                                            <View style={{marginTop: 5}}>
+                                                {renderExampleBolded(VOCAB_DATA[selectedLevel][vocabIndex]?.exJp, VOCAB_DATA[selectedLevel][vocabIndex]?.word)}
+                                            </View>
+                                            <Text style={styles.exKo}>{VOCAB_DATA[selectedLevel][vocabIndex]?.exKo}</Text>
+                                        </View>
+                                    </>
+                                )}
                             </View>
+
+                            {/* Options Box */}
+                            <View style={styles.optionBlock}>
+                                {options.map((opt, i) => {
+                                    const currentMeaning = VOCAB_DATA[selectedLevel][vocabIndex]?.meaning;
+                                    const isCorrectOpt = opt === currentMeaning;
+                                    
+                                    let btnStyle = styles.optBtnV7;
+                                    let textStyle = styles.optBtnTextV7;
+
+                                    if (vocabFeedback !== null) {
+                                        if (isCorrectOpt) {
+                                            // Correct shows Green Flash
+                                            btnStyle = [styles.optBtnV7, {backgroundColor: '#32cd32', borderColor: '#fff'}];
+                                            textStyle = [styles.optBtnTextV7, {color: '#000'}];
+                                        } else if (vocabFeedback === 'incorrect' && opt === selectedAnswer) {
+                                            // Wrong answer shows Red Pain
+                                            btnStyle = [styles.optBtnV7, {backgroundColor: '#ff1e1e', borderColor: '#ff1e1e'}];
+                                            textStyle = [styles.optBtnTextV7, {color: '#fff'}];
+                                        } else {
+                                            // Remaining incorrect ones disabled
+                                            btnStyle = [styles.optBtnV7, {backgroundColor: 'transparent', borderColor: '#444'}];
+                                            textStyle = [styles.optBtnTextV7, {color: '#666'}];
+                                        }
+                                    }
+
+                                    return (
+                                        <TouchableOpacity key={i} style={btnStyle} disabled={vocabFeedback !== null} onPress={() => handleSelectOption(opt)}>
+                                            <Text style={textStyle}>{opt}</Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
+
+                            {vocabFeedback !== null && (
+                                <TouchableOpacity style={styles.continueBtn} onPress={nextVocab}>
+                                    <Text style={[styles.pixelFontLgBtn, {color:'#000'}]}>
+                                        {vocabFeedback === 'correct' ? '▶ 공격 계속! (콤보 UP)' : '▶ 부활하여 다시 도전'}
+                                    </Text>
+                                </TouchableOpacity>
+                            )}
+                        </ScrollView>
+                    )}
+
+                    {/* ===== TOWN TAB ===== */}
+                    {activeTab === 'town' && (
+                        <ScrollView contentContainerStyle={{padding: 20, paddingBottom: 150}}>
+                            <View style={styles.townHeader}>
+                                <Text style={[styles.pixelFontLg, {fontSize: 22, color:'#fff'}]}>🏰 거점 마을</Text>
+                                <View style={styles.goldBox}>
+                                    <Text style={[styles.pixelFontLg, {color:'#ffeb3b', fontSize: 20}]}>{gold} G</Text>
+                                    <Text style={[styles.pixelFontSm, {color:'#aaa', marginTop:2}]}>(1분당 1G 누적)</Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.shopCard}>
+                                <Text style={[styles.pixelFontLg, {fontSize: 20, color:'#ffeb3b', marginBottom: 15, textAlign:'center'}]}>🛍️ 로토의 장비상점</Text>
+                                <Text style={[styles.pixelFontSm, {color:'#aaa', textAlign:'center', marginBottom: 20, lineHeight:20}]}>
+                                    1회 뽑기: 100 G{'\n'}
+                                    전투를 통해 골드를 모아 전설의 장비에 도전하라!
+                                </Text>
+                                
+                                <TouchableOpacity style={styles.gachaBtn} onPress={drawItem}>
+                                    <Text style={styles.gachaBtnText}>장비 뽑기 (100G)</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </ScrollView>
+                    )}
+
+                    {/* ===== PROFILE TAB ===== */}
+                    {activeTab === 'profile' && (
+                        <ScrollView contentContainerStyle={{padding: 20, paddingBottom: 150}}>
+                            {/* JRPG Status View */}
+                            <View style={styles.profileHeaderCard}>
+                                <View style={styles.avatarBox}>
+                                    <Text style={{fontSize: 60}}>{equipped.hat?.emoji || '🦲'}</Text>
+                                    <View style={{flexDirection:'row', alignItems:'center'}}>
+                                        <Text style={{fontSize: 26}}>{equipped.glasses?.emoji || '👁️'}</Text>
+                                        <Text style={{fontSize: 26}}>👃</Text>
+                                    </View>
+                                    <Text style={{fontSize: 50}}>{equipped.top?.emoji || '👕'}</Text>
+                                    <View style={{flexDirection:'row'}}>
+                                        <Text style={{fontSize: 30}}>{equipped.bottom?.emoji || '👖'}</Text>
+                                        <Text style={{fontSize: 30}}>{equipped.shoes?.emoji || '👣'}</Text>
+                                    </View>
+                                </View>
+                                <View style={styles.statusBox}>
+                                    <Text style={[styles.pixelFontLg, {fontSize: 20, color:'#ffeb3b', marginBottom: 5}]}>용사 (LV.{Math.floor(gold/100) + 1})</Text>
+                                    <Text style={[styles.pixelFontSm, {color:'#fff', marginBottom: 2}]}>HP : 999 / 999</Text>
+                                    <Text style={[styles.pixelFontSm, {color:'#fff', marginBottom: 2}]}>MP : ∞</Text>
+                                    <Text style={[styles.pixelFontSm, {color:'#ffeb3b', marginTop: 10}]}>💰 {gold} G</Text>
+                                    
+                                    <View style={{marginTop: 15}}>
+                                        {['hat', 'glasses', 'top', 'bottom', 'shoes'].map(type => (
+                                            <TouchableOpacity key={type} onPress={() => unequipItem(type)} style={styles.equipSlotSm}>
+                                                <Text style={[styles.pixelFontSm, {color: equipped[type] ? equipped[type].color : '#555'}]}>
+                                                    {equipped[type] ? `[${equipped[type].emoji}] ${equipped[type].name}` : `[-] 미장착`}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                </View>
+                            </View>
+
+                            {/* Inventory */}
+                            <View style={styles.inventoryCard}>
+                                <Text style={[styles.pixelFontLg, {color:'#fff', marginBottom:15}]}>🎒 소지품</Text>
+                                {inventory.length === 0 ? (
+                                    <Text style={[styles.pixelFontSm, {color:'#555', textAlign:'center'}]}>가진 것이 없다.</Text>
+                                ) : (
+                                    <View style={styles.invGrid}>
+                                        {inventory.map((item, idx) => (
+                                            <TouchableOpacity key={item.id + idx} style={[styles.invItemSlot, {borderColor: item.color}]} onPress={() => equipItem(item)}>
+                                                <Text style={{fontSize: 24, textAlign:'center'}}>{item.emoji}</Text>
+                                                <Text style={[styles.pixelFontSm, {color: item.color, fontSize:10, textAlign:'center', marginTop:2}]} numberOfLines={1}>{item.name}</Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                )}
+                            </View>
+
+                            {/* Settings Block included in profile */}
+                            <View style={styles.settingsCardProfile}>
+                                <Text style={[styles.pixelFontLg, {fontSize: 18, color:'#fff', marginBottom:15}]}>⚙️ 시스템 / 레벨 설정</Text>
+                                <Text style={[styles.pixelFontSm, {color:'#aaa'}]}>적 레벨 (JLPT 범위):</Text>
+                                <View style={styles.levelRowProfile}>
+                                    {['N5','N4','N3','N2','N1'].map(lvl => (
+                                        <TouchableOpacity key={lvl} style={[styles.setLvlBtn, selectedLevel === lvl && styles.setLvlBtnActive]} onPress={async () => {
+                                            setSelectedLevel(lvl);
+                                            await AsyncStorage.setItem('targetLevel', lvl);
+                                        }}>
+                                            <Text style={[styles.pixelFontLg, {color: selectedLevel===lvl?'#000':'#fff'}]}>{lvl}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </View>
+
+                            {/* Calendar included in profile */}
+                            <View style={{marginTop: 20}}>
+                                {renderCalendarGrid()}
+                                <View style={[styles.calInfoCard, {marginTop: 5}]}>
+                                    <Text style={[styles.pixelFontLg, {color:'#fff'}]}>📌 모험가 수첩</Text>
+                                    <Text style={[styles.pixelFontSm, {color:'#aaa'}]}>꾸준히 몬스터를 토벌하여 기록을 남기자.</Text>
+                                </View>
+                            </View>
+
+                        </ScrollView>
+                    )}
+                </Animated.View>
+
+                {/* Bottom Navigation */}
+                <View style={styles.bottomNav}>
+                    <TouchableOpacity style={[styles.navItem, activeTab === 'chat' && styles.navItemActive]} onPress={() => setActiveTab('chat')}>
+                        <Text style={[styles.navText, activeTab === 'chat' && styles.navTextActive]}>💬 NPC 대화</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.navItem, styles.navItemMiddle, activeTab === 'vocab' && styles.navItemActive]} onPress={() => setActiveTab('vocab')}>
+                        <Text style={[styles.navText, activeTab === 'vocab' && styles.navTextActive]}>⚔️ 명예 전투</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.navItem, styles.navItemMiddle, activeTab === 'town' && styles.navItemActive]} onPress={() => setActiveTab('town')}>
+                        <Text style={[styles.navText, activeTab === 'town' && styles.navTextActive]}>🏰 마을</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.navItem, activeTab === 'profile' && styles.navItemActive]} onPress={() => setActiveTab('profile')}>
+                        <Text style={[styles.navText, activeTab === 'profile' && styles.navTextActive]}>👤 프로필</Text>
+                    </TouchableOpacity>
+                </View>
+
+            </SafeAreaView>
+
+            <Modal transparent={true} visible={!!selectedWord} animationType="fade" onRequestClose={() => setSelectedWord(null)}>
+                <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPressOut={() => setSelectedWord(null)}>
+                    <View style={styles.dictCard}>
+                        {selectedWord && (
+                            <>
+                                <Text style={{fontSize: 28, fontWeight:'bold', marginBottom:5, color:'#fff'}}>{selectedWord.word}</Text>
+                                <Text style={{fontSize: 14, color:'#aaa', marginBottom:15}}>({selectedWord.reading})</Text>
+                                <View style={{height:3, width:'100%', backgroundColor:'#fff', marginBottom:15}} />
+                                <Text style={[styles.pixelFontLg, {color:'#fff'}]}>{selectedWord.meaning}</Text>
+                            </>
                         )}
-                        <Text style={[styles.pixelText, {textAlign: 'center', marginTop: 10}]}>[ 닫기 ]</Text>
                     </View>
                 </TouchableOpacity>
             </Modal>
 
-            {/* Settings Modal */}
             <Modal transparent={true} visible={isSettingsOpen} animationType="slide">
-                <View style={[styles.modalOverlay, {backgroundColor: 'rgba(0,0,0,0.8)'}]}>
-                    <View style={styles.modalContentSettings}>
-                        <Text style={[styles.wordBig, {marginBottom: 20}]}>⚙️ 학습 설정</Text>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.settingsCard}>
+                        <View style={{flexDirection:'row', justifyContent:'space-between', marginBottom:20}}>
+                            <Text style={[styles.pixelFontLg, {fontSize: 24, color:'#fff'}]}>⚙️ 시스템 옵션</Text>
+                            <TouchableOpacity onPress={() => setIsSettingsOpen(false)}><Text style={{fontSize:24, color:'#fff'}}>✕</Text></TouchableOpacity>
+                        </View>
                         
-                        <Text style={styles.pixelTextSmall}>JLPT 목표 레벨 선택:</Text>
-                        <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginVertical: 10}}>
+                        <Text style={[styles.pixelFontSm, {color:'#aaa'}]}>적 레벨 (JLPT 범위):</Text>
+                        <View style={styles.levelRow}>
                             {['N5','N4','N3','N2','N1'].map(lvl => (
-                                <TouchableOpacity key={lvl} style={[styles.lvlBtn, selectedLevel === lvl && styles.lvlBtnActive]} onPress={() => setSelectedLevel(lvl)}>
-                                    <Text style={[styles.lvlText, selectedLevel === lvl && styles.lvlTextActive]}>{lvl}</Text>
+                                <TouchableOpacity key={lvl} style={[styles.setLvlBtn, selectedLevel === lvl && styles.setLvlBtnActive]} onPress={() => setSelectedLevel(lvl)}>
+                                    <Text style={[styles.pixelFontLg, {color: selectedLevel===lvl?'#000':'#fff'}]}>{lvl}</Text>
                                 </TouchableOpacity>
                             ))}
                         </View>
 
-                        <Text style={[styles.pixelTextSmall, {marginTop: 20}]}>하루 목표 단어 갯수 설정:</Text>
-                        <View style={{flexDirection: 'row', alignItems: 'center', gap: 20, marginVertical: 10}}>
-                            <TouchableOpacity style={styles.retroBtnSmallErr} onPress={() => setDailyGoal(p => Math.max(p-5, 5))}>
-                                <Text style={styles.pixelTextSmallInv}>- 5 감소</Text>
+                        <Text style={[styles.pixelFontSm, {marginTop: 30, color:'#aaa'}]}>일일 목표량:</Text>
+                        <View style={styles.goalRow}>
+                            <TouchableOpacity style={styles.goalBtn} onPress={() => setDailyGoal(p => Math.max(p-5, 5))}>
+                                <Text style={[styles.pixelFontLgBtn, {color:'#fff'}]}>- 5</Text>
                             </TouchableOpacity>
-                            <Text style={styles.wordBig}>{dailyGoal}</Text>
-                            <TouchableOpacity style={styles.retroBtnSmallInfo} onPress={() => setDailyGoal(p => Math.min(p+5, 50))}>
-                                <Text style={styles.pixelTextSmallInv}>+ 5 증가</Text>
+                            <Text style={[styles.pixelFontLgBtn, {flex:1, textAlign:'center', color:'#fff'}]}>{dailyGoal} 체</Text>
+                            <TouchableOpacity style={styles.goalBtn} onPress={() => setDailyGoal(p => Math.min(p+5, 50))}>
+                                <Text style={[styles.pixelFontLgBtn, {color:'#fff'}]}>+ 5</Text>
                             </TouchableOpacity>
                         </View>
 
-                        <View style={{marginTop: 30}}>
-                            <TouchableOpacity style={styles.retroBtnLg} onPress={() => saveSettings(selectedLevel, dailyGoal)}>
-                                <Text style={styles.pixelTextInv}>[ 적용 및 게임 리셋 ]</Text>
-                            </TouchableOpacity>
-                        </View>
+                        <TouchableOpacity style={[styles.continueBtn, {marginTop: 40}]} onPress={() => saveSettings(selectedLevel, dailyGoal)}>
+                            <Text style={[styles.pixelFontLgBtn, {color:'#000'}]}>설정 저장 및 데이터 리셋</Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
             </Modal>
-        </SafeAreaView>
+
+            {/* GACHA RESULT MODAL */}
+            <Modal transparent={true} visible={!!gachaResult} animationType="fade" onRequestClose={() => setGachaResult(null)}>
+                <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setGachaResult(null)}>
+                    <View style={[styles.dictCard, {borderColor: gachaResult?.color || '#fff'}]}>
+                        {gachaResult && (
+                            <View style={{alignItems:'center'}}>
+                                <Text style={[styles.pixelFontLg, {color: '#fff', marginBottom: 20}]}>✨ 장비 획득! ✨</Text>
+                                <Text style={{fontSize: 60, marginBottom: 15}}>{gachaResult.emoji}</Text>
+                                <Text style={[styles.pixelFontLg, {color: gachaResult.color, fontSize: 22, marginTop: 10}]}>{gachaResult.grade}</Text>
+                                <Text style={[styles.pixelFontLg, {color: '#fff', fontSize: 18, marginTop: 5}]}>{gachaResult.name}</Text>
+                                <TouchableOpacity style={[styles.continueBtn, {marginTop: 30, width: '100%'}]} onPress={() => setGachaResult(null)}>
+                                    <Text style={[styles.pixelFontLgBtn, {color:'#000'}]}>확인</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
+                    </View>
+                </TouchableOpacity>
+            </Modal>
+        </LinearGradient>
     );
 }
 
 // ========================================
-// STYLES
+// STYLES : JRPG DARK THEME Edition
 // ========================================
-const FONT = 'DotGothic16_400Regular';
-const COLOR_BG = '#9bbc0f';
-const COLOR_FG = '#0f380f';
-const COLOR_FG_LIGHT = '#306230';
-const COLOR_HIGHLIGHT = '#8bac0f';
+const FONT_PIXEL = 'DotGothic16_400Regular';
 
 const styles = StyleSheet.create({
-    loadingContainer: { flex: 1, backgroundColor: COLOR_BG, justifyContent: 'center', alignItems: 'center' },
-    container: { flex: 1, backgroundColor: '#c4cfa1' },
+    container: { flex: 1 },
+    header: { paddingHorizontal: 15, paddingVertical: 10, paddingTop: Platform.OS === 'android' ? 30 : 10 },
     
-    header: { padding: 10, backgroundColor: COLOR_FG, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 4, borderBottomColor: COLOR_FG_LIGHT },
-    headerTitle: { fontSize: 22, fontFamily: FONT, color: COLOR_BG },
-    headerControls: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    volText: { fontFamily: FONT, color: COLOR_BG, fontSize: 14, width: 22, textAlign: 'center' },
+    normalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 10 },
+    headerTitlePixel: { fontFamily: FONT_PIXEL, fontSize: 24, color: '#fff' },
     
-    screenArea: { flex: 1, backgroundColor: COLOR_BG, borderWidth: 8, borderColor: '#555', margin: 10, borderRadius: 10, overflow: 'hidden' },
-    
-    // TABS
-    tabBar: { flexDirection: 'row', backgroundColor: COLOR_FG, padding: 5, paddingBottom: Platform.OS === 'ios' ? 20 : 5 },
-    tabBtn: { flex: 1, alignItems: 'center', paddingVertical: 12, marginHorizontal: 2, borderWidth: 2, borderColor: COLOR_BG },
-    tabBtnActive: { backgroundColor: COLOR_BG },
-    tabText: { fontFamily: FONT, fontSize: 18, color: COLOR_BG },
-    tabTextActive: { color: COLOR_FG, fontWeight: 'bold' },
+    // RPG Health Bar (HP)
+    progressHeaderObj: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    iconBtn: { padding: 5, paddingHorizontal: 10 },
+    progressBarContainer: { flex: 1, backgroundColor: '#000', borderWidth: 3, borderColor: '#fff', height: 22, marginHorizontal: 15, overflow: 'hidden', justifyContent: 'center'},
+    progressBarFill: { height: '100%', backgroundColor: '#32cd32', borderRightWidth: 2, borderColor: '#000' }, // Vibrant Green HP
+    progressText: { position: 'absolute', alignSelf: 'center', fontFamily: FONT_PIXEL, fontSize: 13, color: '#fff', textShadowColor: '#000', textShadowOffset: {width: 2, height: 2}, textShadowRadius: 0 },
 
-    // CORE FONTS
-    pixelText: { fontFamily: FONT, fontSize: 16, color: COLOR_FG, lineHeight: 24 },
-    pixelTextDim: { fontFamily: FONT, fontSize: 14, color: COLOR_FG_LIGHT, marginTop: 4 },
-    pixelTextInv: { fontFamily: FONT, fontSize: 16, color: COLOR_BG, textAlign: 'center' },
-    pixelTextSmall: { fontFamily: FONT, fontSize: 14, color: COLOR_FG, fontWeight: 'bold' },
-    pixelTextSmallInv: { fontFamily: FONT, fontSize: 14, color: COLOR_BG },
+    screenArea: { flex: 1 },
+    
+    // Bottom Nav (JRPG Thick Board)
+    bottomNav: { flexDirection: 'row', backgroundColor: '#0c0c16', borderTopWidth: 4, borderColor: '#fff' },
+    navItem: { flex: 1, alignItems: 'center', paddingVertical: 18, backgroundColor: 'transparent' },
+    navItemMiddle: { borderLeftWidth: 4, borderRightWidth: 4, borderColor: '#fff' },
+    navItemActive: { backgroundColor: '#212250' }, 
+    navText: { fontFamily: FONT_PIXEL, fontSize: 16, color: '#aaa' },
+    navTextActive: { color: '#fff', fontWeight: 'bold' },
 
-    // CALENDAR GRID
-    calendarTab: { flex: 1, padding: 20 },
-    calendarContainer: { borderWidth: 4, borderColor: COLOR_FG, backgroundColor: COLOR_HIGHLIGHT, padding: 10 },
-    calMonthTitle: { fontFamily: FONT, fontSize: 20, color: COLOR_FG, textAlign: 'center', marginBottom: 10 },
-    calRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+    // ========================================
+    // VOCAB V9 (JRPG Dialog Box & Combat)
+    // ========================================
+    vocabTabWrapper: { padding: 20, flexGrow:1, paddingBottom: 150 },
+    
+    // The Dialog Box Element
+    vocabCard: { backgroundColor: '#0a0a14', borderWidth: 4, borderColor: '#fff', padding: 20, marginBottom: 15, minHeight: 180 },
+    levelBadge: { backgroundColor: '#212250', paddingHorizontal: 10, paddingVertical: 4, borderWidth: 2, borderColor: '#fff' },
+    pixelFontSm: { fontFamily: FONT_PIXEL, fontSize: 14, color: '#bbb' },
+    pixelFontLg: { fontFamily: FONT_PIXEL, fontSize: 16, color: '#fff' },
+    pixelFontLgBtn: { fontFamily: FONT_PIXEL, fontSize: 18, color: '#000' },
+
+    vocabTargetJapanese: { fontSize: 28, fontWeight: 'bold', color: '#fff', textAlign: 'center', marginVertical: 8 },
+    vocabAnswerReading: { fontFamily: FONT_PIXEL, fontSize: 16, color: '#aaa', textAlign: 'center', marginTop: 5 },
+    
+    ttsBtn: { alignSelf: 'flex-end', padding: 6, backgroundColor: '#fff', borderWidth: 2, borderColor: '#fff', marginBottom: 10 },
+
+    exampleBox: { marginTop: 10, backgroundColor: '#000', padding: 15, borderWidth: 2, borderColor: '#666' },
+    exampleBadge: { alignSelf: 'flex-start', fontFamily: FONT_PIXEL, fontSize: 12, backgroundColor: '#fff', color: '#000', paddingHorizontal: 6, paddingVertical: 2, marginBottom: 5 },
+    exJpText: { fontSize: 15, color: '#fff', lineHeight: 22, fontWeight: '500' },
+    exJpBold: { fontSize: 16, fontWeight: 'bold', color: '#ffeb3b' },
+    exKo: { fontFamily: FONT_PIXEL, fontSize: 14, color: '#aaa', marginTop: 8 },
+
+    // The Options Matrix
+    optionBlock: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginTop: 5 },
+    optBtnV7: { width: '48%', marginBottom: 12, backgroundColor: '#0a0a14', paddingVertical: 14, borderWidth: 4, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+    optBtnTextV7: { fontFamily: FONT_PIXEL, fontSize: 16, color: '#fff', textAlign: 'center', fontWeight: 'bold' },
+
+    continueBtn: { backgroundColor: '#ffeb3b', borderWidth: 4, borderColor: '#fff', paddingVertical: 15, marginTop: 10, alignItems: 'center' },
+
+    // ========================================
+    // CHAT SCREEN (Now NPC Chat System)
+    // ========================================
+    scrollContent: { padding: 15, paddingBottom: 20 },
+    userBubbleWrapper: { alignSelf: 'flex-end', marginVertical: 6, maxWidth: '80%' },
+    aiBubbleWrapper: { alignSelf: 'flex-start', marginVertical: 6, maxWidth: '80%', flexDirection: 'row', alignItems: 'flex-end' },
+    bubbleUser: { backgroundColor: '#d4d4d4', padding: 12, borderWidth: 3, borderColor: '#fff' },
+    bubbleAi: { backgroundColor: '#0a0a14', padding: 12, borderWidth: 3, borderColor: '#fff' },
+    chatText: { fontSize: 16, lineHeight: 22, fontWeight: '500' },
+    chatDimText: { fontFamily: FONT_PIXEL, fontSize: 13, color: '#888', marginTop: 5 },
+    chatCorrectionText: { fontFamily: FONT_PIXEL, fontSize: 13, color: '#ff5252', marginTop: 5 },
+    chatInputArea: { padding: 15, paddingBottom: 30, backgroundColor: 'transparent' },
+    micBtn: { backgroundColor: '#0a0a14', padding: 15, borderWidth: 4, borderColor: '#fff', alignItems: 'center' },
+    micBtnRec: { backgroundColor: '#ff1e1e' },
+
+    // ========================================
+    // CALENDAR TAB (Quest Log)
+    // ========================================
+    calendarContainer: { backgroundColor: '#0a0a14', borderWidth: 4, borderColor: '#fff', padding: 20 },
+    calTitle: { fontFamily: FONT_PIXEL, fontSize: 24, color: '#fff', textAlign: 'center', marginBottom: 15 },
+    calRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
     calHeaderCell: { flex: 1, alignItems: 'center' },
-    calHeaderText: { fontFamily: FONT, fontSize: 14, color: COLOR_FG },
+    calHeaderText: { fontFamily: FONT_PIXEL, fontSize: 16, color: '#aaa', fontWeight: 'bold' },
     calCellEmpty: { flex: 1, margin: 2 },
-    calCell: { flex: 1, aspectRatio: 1, margin: 2, borderWidth: 2, borderColor: COLOR_FG, backgroundColor: COLOR_BG, alignItems: 'center', justifyContent: 'center' },
-    calCellAttended: { backgroundColor: COLOR_FG },
-    calText: { fontFamily: FONT, fontSize: 12, color: COLOR_FG },
-    calTextAttended: { color: COLOR_BG },
+    calCell: { flex: 1, aspectRatio: 1, margin: 2, borderWidth: 2, borderColor: '#333', backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
+    calCellAttended: { backgroundColor: '#fff', borderColor: '#fff', borderWidth: 2 },
+    calText: { fontFamily: FONT_PIXEL, fontSize: 16, color: '#555' },
+    calTextAttended: { color: '#000', fontWeight: 'bold' },
+    calInfoCard: { backgroundColor: '#0a0a14', padding: 20, borderWidth: 4, borderColor: '#fff', marginTop: 20 },
 
-    // CHAT
-    scrollContent: { padding: 10, paddingBottom: 20 },
-    userBubbleWrapper: { alignSelf: 'flex-end', marginVertical: 6, maxWidth: '85%' },
-    aiBubbleWrapper: { alignSelf: 'flex-start', marginVertical: 6, maxWidth: '85%' },
-    aiHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 },
-    aiName: { fontFamily: FONT, fontSize: 14, color: COLOR_FG },
-    bubbleBase: { padding: 10, borderWidth: 3, borderColor: COLOR_FG, backgroundColor: COLOR_HIGHLIGHT },
-    correctionBox: { marginTop: 6, padding: 6, borderTopWidth: 2, borderColor: COLOR_FG, borderStyle: 'dotted' },
-    tokenBtn: { borderWidth: 1, borderColor: COLOR_FG, backgroundColor: COLOR_BG, paddingHorizontal: 4, paddingVertical: 2, marginRight: 4, marginBottom: 4 },
-    inputArea: { padding: 10, borderTopWidth: 4, borderColor: COLOR_FG, backgroundColor: COLOR_HIGHLIGHT },
+    // ========================================
+    // MODALS (Settings / Dictionary)
+    // ========================================
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+    dictCard: { width: '100%', backgroundColor: '#0a0a14', borderWidth: 4, borderColor: '#fff', padding: 25 },
+    settingsCard: { width: '100%', backgroundColor: '#0a0a14', borderWidth: 4, borderColor: '#fff', padding: 25 },
+    levelRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 10 },
+    setLvlBtn: { borderWidth: 3, borderColor: '#555', paddingHorizontal: 15, paddingVertical: 8, backgroundColor: 'transparent' },
+    setLvlBtnActive: { backgroundColor: '#fff', borderColor: '#fff' },
+    goalRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#111', borderWidth: 3, borderColor: '#555', padding: 10, marginTop:10 },
+    goalBtn: { backgroundColor: '#222', paddingHorizontal: 20, paddingVertical: 10, borderWidth: 2, borderColor: '#aaa' },
+
+    // ========================================
+    // TOWN & PROFILE STYLES
+    // ========================================
+    townHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+    goldBox: { backgroundColor: '#111', padding: 10, borderWidth: 2, borderColor: '#fff', alignItems: 'center' },
+    shopCard: { backgroundColor: '#0a0a14', borderWidth: 4, borderColor: '#ffeb3b', padding: 25, marginTop: 10, alignItems: 'center' },
+    gachaBtn: { backgroundColor: '#00bcd4', borderWidth: 4, borderColor: '#fff', paddingVertical: 15, paddingHorizontal: 30, marginTop: 10 },
+    gachaBtnText: { fontFamily: FONT_PIXEL, fontSize: 18, color: '#fff', fontWeight: 'bold' },
+
+    profileHeaderCard: { backgroundColor: '#0a0a14', borderWidth: 4, borderColor: '#fff', padding: 15, marginBottom: 15, flexDirection: 'row' },
+    avatarBox: { width: 100, alignItems: 'center', justifyContent: 'center', marginRight: 15, backgroundColor: '#000', borderWidth: 2, borderColor: '#333' },
+    statusBox: { flex: 1, justifyContent: 'center' },
+    equipSlotSm: { marginBottom: 8, padding: 4, backgroundColor: '#111', borderWidth: 1, borderColor: '#444' },
     
-    // BUTTONS
-    retroBtnLg: { backgroundColor: COLOR_FG, padding: 15, borderWidth: 3, borderColor: COLOR_FG_LIGHT },
-    recordingBtn: { backgroundColor: '#e74c3c' },
-    retroBtnSmall: { backgroundColor: COLOR_FG, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 2, borderColor: COLOR_BG },
-    retroBtnSmallInfo: { backgroundColor: COLOR_FG_LIGHT, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 2, borderColor: COLOR_BG },
-    retroBtnSmallErr: { backgroundColor: '#e74c3c', paddingHorizontal: 8, paddingVertical: 4, borderWidth: 2, borderColor: COLOR_BG },
-
-    // VOCAB
-    vocabCard: { marginVertical: 10, padding: 30, borderWidth: 4, borderColor: COLOR_FG, alignItems: 'center', backgroundColor: COLOR_HIGHLIGHT },
-    vocabMeaning: { fontFamily: FONT, fontSize: 40, color: COLOR_FG, textAlign: 'center' },
-    vocabWordHint: { fontFamily: FONT, fontSize: 20, color: COLOR_FG_LIGHT, marginTop: 10 },
+    inventoryCard: { backgroundColor: '#0a0a14', borderWidth: 4, borderColor: '#fff', padding: 15, marginBottom: 15 },
+    invGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+    invItemSlot: { backgroundColor: '#111', borderWidth: 2, width: '22%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center', padding: 5 },
     
-    optionBlock: { flexDirection: 'column', gap: 10 },
-    optBtn: { backgroundColor: COLOR_BG, borderWidth: 3, borderColor: COLOR_FG, padding: 15 },
-    optBtnCorrect: { backgroundColor: COLOR_FG },
-    optBtnDisabled: { opacity: 0.5 },
-    optBtnText: { fontFamily: FONT, fontSize: 20, color: COLOR_FG, textAlign: 'center' },
-    optBtnTextInv: { color: COLOR_BG },
-    optBtnTextDisabled: { color: COLOR_FG_LIGHT },
-
-    feedbackBox: { marginTop: 15, padding: 10, borderWidth: 4, borderColor: COLOR_FG, backgroundColor: COLOR_BG },
-    feedbackCorrect: { fontFamily: FONT, fontSize: 24, color: COLOR_FG, textAlign: 'center' },
-    feedbackIncorrect: { fontFamily: FONT, fontSize: 24, color: '#e74c3c', textAlign: 'center' },
-
-    // MODAL
-    modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 56, 15, 0.8)', justifyContent: 'center', alignItems: 'center' },
-    modalContent: { width: '80%', backgroundColor: COLOR_HIGHLIGHT, borderWidth: 4, borderColor: COLOR_FG, padding: 20 },
-    modalContentSettings: { width: '90%', backgroundColor: COLOR_BG, borderWidth: 6, borderColor: COLOR_FG, padding: 25 },
-    wordDetails: { alignItems: 'center' },
-    wordBig: { fontFamily: FONT, fontSize: 36, color: COLOR_FG },
-    wordReading: { fontFamily: FONT, fontSize: 18, color: COLOR_FG_LIGHT, marginVertical: 10 },
-    divider: { width: '100%', height: 2, backgroundColor: COLOR_FG, marginVertical: 10 },
-    wordMeaning: { fontFamily: FONT, fontSize: 24, color: COLOR_FG },
-
-    lvlBtn: { paddingHorizontal: 15, paddingVertical: 10, borderWidth: 3, borderColor: COLOR_FG, backgroundColor: COLOR_HIGHLIGHT },
-    lvlBtnActive: { backgroundColor: COLOR_FG },
-    lvlText: { fontFamily: FONT, fontSize: 18, color: COLOR_FG },
-    lvlTextActive: { color: COLOR_BG },
+    settingsCardProfile: { backgroundColor: '#0a0a14', borderWidth: 4, borderColor: '#aaa', padding: 15, marginBottom: 15 },
+    levelRowProfile: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 10 }
 });
