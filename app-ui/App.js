@@ -62,6 +62,7 @@ export default function App() {
     const [gold, setGold] = useState(0);
     const [inventory, setInventory] = useState([]);
     const [equipped, setEquipped] = useState({ hat: null, glasses: null, top: null, bottom: null, shoes: null });
+    const [lastLoginTime, setLastLoginTime] = useState(Date.now());
     const [gachaResult, setGachaResult] = useState(null);
 
     const [selectedWord, setSelectedWord] = useState(null); 
@@ -480,29 +481,68 @@ export default function App() {
 
                     {/* ===== TOWN TAB ===== */}
                     {activeTab === 'town' && (
-                        <ImageBackground source={require('./assets/town_bg.png')} style={{flex: 1}} imageStyle={{opacity: 0.8, resizeMode: 'cover'}}>
-                            <ScrollView contentContainerStyle={{padding: 20, paddingBottom: 150}}>
-                                <View style={styles.townHeader}>
-                                    <Text style={[styles.pixelFontLg, {fontSize: 22, color:'#fff', textShadowColor: '#000', textShadowRadius: 6, textShadowOffset: {width: 2, height: 2}}]}>🏰 거점 마을</Text>
-                                    <View style={styles.goldBox}>
-                                        <Text style={[styles.pixelFontLg, {color:'#ffeb3b', fontSize: 20}]}>{gold} G</Text>
-                                        <Text style={[styles.pixelFontSm, {color:'#aaa', marginTop:2}]}>(1분당 1G 누적)</Text>
+                        <View style={styles.townMapContainer}>
+                            <ImageBackground source={require('./assets/town_bg.png')} style={styles.townMapBg} imageStyle={{resizeMode: 'cover'}}>
+                                
+                                {/* Top HUD */}
+                                <View style={styles.topResourceHud}>
+                                    <View style={styles.townLevelBadge}>
+                                        <Text style={[styles.pixelFontLg, {color:'#fff'}]}>Lv.1</Text>
+                                        <Text style={[styles.pixelFontSm, {color:'#aaa'}]}>시작의 마을</Text>
+                                    </View>
+                                    <View style={styles.topGoldBox}>
+                                        <Text style={{fontSize: 16}}>💰</Text>
+                                        <Text style={[styles.pixelFontLg, {color:'#ffeb3b', marginLeft: 6}]}>{gold}</Text>
                                     </View>
                                 </View>
 
-                                <View style={styles.shopCard}>
-                                    <Text style={[styles.pixelFontLg, {fontSize: 20, color:'#ffeb3b', marginBottom: 15, textAlign:'center'}]}>🛍️ 로토의 장비상점</Text>
-                                    <Text style={[styles.pixelFontSm, {color:'#ddd', textAlign:'center', marginBottom: 20, lineHeight:20}]}>
-                                        1회 뽑기: 100 G{'\n'}
-                                        전투를 통해 골드를 모아 전설의 장비에 도전하라!
-                                    </Text>
+                                {/* Absolute Map Buildings */}
+                                {/* 1. Castle / Info */}
+                                <TouchableOpacity style={[styles.mapBuilding, {top: '15%', left: '10%'}]} onPress={() => setActiveTab('profile')}>
+                                    <Text style={styles.buildingIcon}>🏰</Text>
+                                    <View style={styles.buildingLabel}><Text style={[styles.pixelFontSm, {color:'#fff'}]}>내 거점</Text></View>
+                                </TouchableOpacity>
+
+                                {/* 2. Shop */}
+                                <TouchableOpacity style={[styles.mapBuilding, {top: '40%', right: '15%'}]} onPress={drawItem}>
+                                    <Text style={styles.buildingIcon}>🛍️</Text>
+                                    <View style={styles.buildingLabel}><Text style={[styles.pixelFontSm, {color:'#fff'}]}>장비 뽑기</Text></View>
+                                    <View style={styles.buildingCostBadge}><Text style={[styles.pixelFontSm, {color:'#ffeb3b', fontSize: 10}]}>100G</Text></View>
+                                </TouchableOpacity>
+
+                                {/* 3. Farm */}
+                                <TouchableOpacity style={[styles.mapBuilding, {top: '60%', left: '20%'}]} onPress={() => {alert('수확할 자원이 없거나, 자동으로 수확됩니다.')}}>
+                                    <Text style={styles.buildingIcon}>🌾</Text>
+                                    <View style={styles.buildingLabel}><Text style={[styles.pixelFontSm, {color:'#fff'}]}>마나 농장</Text></View>
+                                    <View style={styles.buildingProgressBadge}><Text style={[styles.pixelFontSm, {color:'#32cd32', fontSize: 10}]}>가동 중</Text></View>
+                                </TouchableOpacity>
+
+                                {/* Bottom HUD Layout */}
+                                <View style={styles.bottomMapNav}>
+                                    <View style={styles.bottomMapLeftSlots}>
+                                        <TouchableOpacity style={styles.mapSlotBtn} onPress={() => setActiveTab('profile')}>
+                                            <Text style={styles.mapSlotIcon}>👤</Text>
+                                            <Text style={styles.mapSlotText}>거점 정보</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity style={styles.mapSlotBtn} onPress={drawItem}>
+                                            <Text style={styles.mapSlotIcon}>⚔️</Text>
+                                            <Text style={styles.mapSlotText}>장비 뽑기</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity style={styles.mapSlotBtn} onPress={() => alert('누적된 자원을 수확했습니다!')}>
+                                            <Text style={styles.mapSlotIcon}>🪙</Text>
+                                            <Text style={styles.mapSlotText}>보상 수확</Text>
+                                        </TouchableOpacity>
+                                    </View>
                                     
-                                    <TouchableOpacity style={styles.gachaBtn} onPress={drawItem}>
-                                        <Text style={styles.gachaBtnText}>장비 뽑기 (100G)</Text>
+                                    {/* Big Blue Button for Combat */}
+                                    <TouchableOpacity style={styles.bigActionBtn} onPress={() => setActiveTab('vocab')}>
+                                        <Text style={[styles.pixelFontLg, {color:'#fff', fontWeight:'bold', fontSize: 18}]}>▶ 전투</Text>
+                                        <Text style={[styles.pixelFontSm, {color:'#cceeff', marginTop: 2}]}>진입하기</Text>
                                     </TouchableOpacity>
                                 </View>
-                            </ScrollView>
-                        </ImageBackground>
+
+                            </ImageBackground>
+                        </View>
                     )}
 
                     {/* ===== PROFILE TAB ===== */}
@@ -759,13 +799,28 @@ const styles = StyleSheet.create({
     goalBtn: { backgroundColor: '#222', paddingHorizontal: 20, paddingVertical: 10, borderWidth: 2, borderBottomWidth: 4, borderColor: '#aaa', borderRadius: 6 },
 
     // ========================================
-    // TOWN & PROFILE STYLES
+    // TOWN (Map HUD) & PROFILE STYLES
     // ========================================
-    townHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-    goldBox: { backgroundColor: 'rgba(0,0,0,0.85)', padding: 10, borderWidth: 4, borderColor: '#fff', borderRadius: 8, alignItems: 'center' },
-    shopCard: { backgroundColor: 'rgba(0, 0, 0, 0.85)', borderWidth: 4, borderColor: '#fff', borderRadius: 8, padding: 25, marginTop: 10, alignItems: 'center' },
-    gachaBtn: { backgroundColor: '#ffeb3b', borderWidth: 3, borderBottomWidth: 8, borderColor: '#000', borderRadius: 8, paddingVertical: 15, paddingHorizontal: 30, marginTop: 10 },
-    gachaBtnText: { fontFamily: FONT_PIXEL, fontSize: 18, color: '#000', fontWeight: 'bold' },
+    townMapContainer: { flex: 1, backgroundColor: '#000' },
+    townMapBg: { flex: 1, width: '100%', height: '100%' },
+    
+    topResourceHud: { position: 'absolute', top: 20, left: 15, right: 15, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 },
+    townLevelBadge: { backgroundColor: 'rgba(0,0,0,0.7)', borderWidth: 2, borderColor: '#aaa', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 6, alignItems: 'center' },
+    topGoldBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.85)', borderWidth: 3, borderColor: '#ffeb3b', borderRadius: 6, paddingHorizontal: 15, paddingVertical: 8 },
+
+    mapBuilding: { position: 'absolute', alignItems: 'center', zIndex: 5 },
+    buildingIcon: { fontSize: 50, textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: {width: 2, height: 2}, textShadowRadius: 6 },
+    buildingLabel: { backgroundColor: 'rgba(0,0,0,0.8)', borderWidth: 1, borderColor: '#fff', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2, marginTop: 2 },
+    buildingCostBadge: { position: 'absolute', top: -10, backgroundColor: '#000', borderWidth: 1, borderColor: '#ffeb3b', borderRadius: 4, paddingHorizontal: 4 },
+    buildingProgressBadge: { position: 'absolute', top: -10, backgroundColor: '#000', borderWidth: 1, borderColor: '#32cd32', borderRadius: 4, paddingHorizontal: 4 },
+
+    bottomMapNav: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', padding: 10, paddingBottom: Platform.OS === 'ios' ? 25 : 10, backgroundColor: 'rgba(0,0,0,0.6)', borderTopWidth: 2, borderColor: '#555', alignItems: 'flex-end', zIndex: 20 },
+    bottomMapLeftSlots: { flex: 1, flexDirection: 'row', justifyContent: 'space-between', paddingRight: 15 },
+    mapSlotBtn: { flex: 1, aspectRatio: 1, backgroundColor: 'rgba(30, 30, 40, 0.9)', borderWidth: 2, borderBottomWidth: 4, borderColor: '#888', borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginHorizontal: 4 },
+    mapSlotIcon: { fontSize: 24, marginBottom: 4 },
+    mapSlotText: { fontFamily: FONT_PIXEL, fontSize: 10, color: '#ddd' },
+
+    bigActionBtn: { width: 100, height: 60, backgroundColor: '#0055ff', borderWidth: 3, borderBottomWidth: 6, borderColor: '#000', borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
 
     profileHeaderCard: { backgroundColor: 'rgba(0,0,0,0.85)', borderWidth: 4, borderColor: '#fff', borderRadius: 8, padding: 15, marginBottom: 15, flexDirection: 'row' },
     avatarBox: { width: 100, alignItems: 'center', justifyContent: 'center', marginRight: 15, backgroundColor: '#000', borderWidth: 2, borderColor: '#333' },
