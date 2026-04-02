@@ -62,10 +62,10 @@ export default function App() {
     const [gold, setGold] = useState(0);
     const [inventory, setInventory] = useState([]);
     const [equipped, setEquipped] = useState({ hat: null, glasses: null, top: null, bottom: null, shoes: null });
-    const [lastLoginTime, setLastLoginTime] = useState(Date.now());
     const [gachaResult, setGachaResult] = useState(null);
 
     const [selectedWord, setSelectedWord] = useState(null); 
+    const [voices, setVoices] = useState([]);
 
     // Vocab & Settings
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -83,6 +83,15 @@ export default function App() {
     const shakeAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
+        const initVoices = async () => {
+            try {
+                const allVoices = await Speech.getAvailableVoicesAsync();
+                const jpVoices = allVoices.filter(v => v.language.includes('ja') || v.language.includes('jp'));
+                setVoices(jpVoices);
+            } catch(e) {}
+        };
+        initVoices();
+
         loadAttendance();
         loadSettings();
 
@@ -108,6 +117,13 @@ export default function App() {
     }, [gold, inventory, equipped, lastLoginTime]);
 
     useEffect(() => { resetVocabSession(); }, [selectedLevel]);
+
+    const getRandomVoice = () => {
+        if(voices && voices.length > 0) {
+            return voices[Math.floor(Math.random() * voices.length)].identifier;
+        }
+        return undefined;
+    };
 
     const playFxAndAnimate = async (isCorrect) => {
         try {
@@ -226,7 +242,7 @@ export default function App() {
         if (isCorrect) {
             const newScore = vocabScore + 1;
             setVocabScore(newScore);
-            Speech.speak(current.word, { language: 'ja', rate: 0.85 });
+            Speech.speak(current.word, { language: 'ja', rate: 0.85, voice: getRandomVoice() });
             
             if (newScore === 1) markAttendanceToday(); 
         } else {
@@ -255,8 +271,9 @@ export default function App() {
     const readLoudly = () => {
         const current = VOCAB_DATA[selectedLevel][vocabIndex];
         Speech.stop();
-        Speech.speak(current.word, { language: 'ja', rate: 0.85 });
-        Speech.speak(current.exJp, { language: 'ja', rate: 0.95 });
+        const v = getRandomVoice();
+        Speech.speak(current.word, { language: 'ja', rate: 0.85, voice: v });
+        Speech.speak(current.exJp, { language: 'ja', rate: 0.95, voice: v });
     };
 
     // ========================================
@@ -430,11 +447,11 @@ export default function App() {
                                     if (vocabFeedback !== null) {
                                         if (isCorrectOpt) {
                                             // Correct shows Green Flash
-                                            btnStyle = [styles.optBtnV7, {backgroundColor: '#32cd32', borderColor: '#fff'}];
+                                            btnStyle = [styles.optBtnV7, {backgroundColor: '#32cd32', borderColor: '#000'}];
                                             textStyle = [styles.optBtnTextV7, {color: '#000'}];
                                         } else if (vocabFeedback === 'incorrect' && opt === selectedAnswer) {
                                             // Wrong answer shows Red Pain
-                                            btnStyle = [styles.optBtnV7, {backgroundColor: '#ff1e1e', borderColor: '#ff1e1e'}];
+                                            btnStyle = [styles.optBtnV7, {backgroundColor: '#ff1e1e', borderColor: '#000'}];
                                             textStyle = [styles.optBtnTextV7, {color: '#fff'}];
                                         } else {
                                             // Remaining incorrect ones disabled
@@ -572,13 +589,13 @@ export default function App() {
                 {/* Bottom Navigation */}
                 <View style={styles.bottomNav}>
                     <TouchableOpacity style={[styles.navItem, activeTab === 'vocab' && styles.navItemActive]} onPress={() => setActiveTab('vocab')}>
-                        <Text style={[styles.navText, activeTab === 'vocab' && styles.navTextActive]}>⚔️ 명예 전투</Text>
+                        <Text style={[styles.navText, activeTab === 'vocab' && styles.navTextActive]}>⚔️ 전투</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={[styles.navItem, styles.navItemMiddle, activeTab === 'town' && styles.navItemActive]} onPress={() => setActiveTab('town')}>
+                    <TouchableOpacity style={[styles.navItem, activeTab === 'town' && styles.navItemActive]} onPress={() => setActiveTab('town')}>
                         <Text style={[styles.navText, activeTab === 'town' && styles.navTextActive]}>🏰 마을</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={[styles.navItem, activeTab === 'profile' && styles.navItemActive]} onPress={() => setActiveTab('profile')}>
-                        <Text style={[styles.navText, activeTab === 'profile' && styles.navTextActive]}>👤 프로필</Text>
+                        <Text style={[styles.navText, activeTab === 'profile' && styles.navTextActive]}>👤 거점</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -671,19 +688,18 @@ const styles = StyleSheet.create({
     // RPG Health Bar (HP)
     progressHeaderObj: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     iconBtn: { padding: 5, paddingHorizontal: 10 },
-    progressBarContainer: { flex: 1, backgroundColor: '#000', borderWidth: 3, borderColor: '#fff', height: 22, marginHorizontal: 15, overflow: 'hidden', justifyContent: 'center'},
-    progressBarFill: { height: '100%', backgroundColor: '#32cd32', borderRightWidth: 2, borderColor: '#000' }, // Vibrant Green HP
-    progressText: { position: 'absolute', alignSelf: 'center', fontFamily: FONT_PIXEL, fontSize: 13, color: '#fff', textShadowColor: '#000', textShadowOffset: {width: 2, height: 2}, textShadowRadius: 0 },
+    progressBarContainer: { flex: 1, backgroundColor: '#000', borderWidth: 3, borderBottomWidth: 6, borderColor: '#fff', borderRadius: 8, height: 26, marginHorizontal: 10, overflow: 'hidden', justifyContent: 'center'},
+    progressBarFill: { height: '100%', backgroundColor: '#32cd32', borderRightWidth: 3, borderColor: '#000' }, // Vibrant Green HP
+    progressText: { position: 'absolute', alignSelf: 'center', fontFamily: FONT_PIXEL, fontSize: 13, color: '#fff', textShadowColor: '#000', textShadowOffset: {width: 1, height: 1}, textShadowRadius: 0 },
 
     screenArea: { flex: 1 },
     
-    // Bottom Nav (JRPG Thick Board)
-    bottomNav: { flexDirection: 'row', backgroundColor: '#0c0c16', borderTopWidth: 4, borderColor: '#fff' },
-    navItem: { flex: 1, alignItems: 'center', paddingVertical: 18, backgroundColor: 'transparent' },
-    navItemMiddle: { borderLeftWidth: 4, borderRightWidth: 4, borderColor: '#fff' },
-    navItemActive: { backgroundColor: '#212250' }, 
-    navText: { fontFamily: FONT_PIXEL, fontSize: 16, color: '#aaa' },
-    navTextActive: { color: '#fff', fontWeight: 'bold' },
+    // Bottom Nav (Chunky Modern + Retro)
+    bottomNav: { flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.9)', borderTopWidth: 4, borderColor: '#fff', paddingVertical: 8, paddingHorizontal: 5 },
+    navItem: { flex: 1, alignItems: 'center', paddingVertical: 12, marginHorizontal: 4, borderRadius: 8, backgroundColor: 'transparent' },
+    navItemActive: { backgroundColor: '#ffeb3b', borderWidth: 3, borderBottomWidth: 6, borderColor: '#000' }, 
+    navText: { fontFamily: FONT_PIXEL, fontSize: 14, color: '#aaa' },
+    navTextActive: { color: '#000', fontWeight: 'bold' },
 
     // ========================================
     // VOCAB V9 (JRPG Dialog Box & Combat)
@@ -691,8 +707,8 @@ const styles = StyleSheet.create({
     vocabTabWrapper: { padding: 20, flexGrow:1, paddingBottom: 150 },
     
     // The Dialog Box Element
-    vocabCard: { backgroundColor: '#0a0a14', borderWidth: 4, borderColor: '#fff', padding: 20, marginBottom: 15, minHeight: 180 },
-    levelBadge: { backgroundColor: '#212250', paddingHorizontal: 10, paddingVertical: 4, borderWidth: 2, borderColor: '#fff' },
+    vocabCard: { backgroundColor: 'rgba(0, 0, 0, 0.85)', borderWidth: 4, borderColor: '#fff', borderRadius: 8, padding: 20, marginBottom: 15, minHeight: 180 },
+    levelBadge: { backgroundColor: '#212250', paddingHorizontal: 10, paddingVertical: 4, borderWidth: 2, borderColor: '#fff', borderRadius: 4 },
     pixelFontSm: { fontFamily: FONT_PIXEL, fontSize: 14, color: '#bbb' },
     pixelFontLg: { fontFamily: FONT_PIXEL, fontSize: 16, color: '#fff' },
     pixelFontLgBtn: { fontFamily: FONT_PIXEL, fontSize: 18, color: '#000' },
@@ -700,25 +716,25 @@ const styles = StyleSheet.create({
     vocabTargetJapanese: { fontSize: 28, fontWeight: 'bold', color: '#fff', textAlign: 'center', marginVertical: 8 },
     vocabAnswerReading: { fontFamily: FONT_PIXEL, fontSize: 16, color: '#aaa', textAlign: 'center', marginTop: 5 },
     
-    ttsBtn: { alignSelf: 'flex-end', padding: 6, backgroundColor: '#fff', borderWidth: 2, borderColor: '#fff', marginBottom: 10 },
+    ttsBtn: { alignSelf: 'flex-end', padding: 8, backgroundColor: '#ffeb3b', borderWidth: 3, borderBottomWidth: 5, borderColor: '#000', borderRadius: 6, marginBottom: 10 },
 
-    exampleBox: { marginTop: 10, backgroundColor: '#000', padding: 15, borderWidth: 2, borderColor: '#666' },
-    exampleBadge: { alignSelf: 'flex-start', fontFamily: FONT_PIXEL, fontSize: 12, backgroundColor: '#fff', color: '#000', paddingHorizontal: 6, paddingVertical: 2, marginBottom: 5 },
+    exampleBox: { marginTop: 10, backgroundColor: 'rgba(0,0,0,0.5)', padding: 15, borderWidth: 2, borderColor: '#555', borderRadius: 6 },
+    exampleBadge: { alignSelf: 'flex-start', fontFamily: FONT_PIXEL, fontSize: 12, backgroundColor: '#fff', color: '#000', paddingHorizontal: 6, paddingVertical: 2, marginBottom: 5, borderRadius: 4 },
     exJpText: { fontSize: 15, color: '#fff', lineHeight: 22, fontWeight: '500' },
     exJpBold: { fontSize: 16, fontWeight: 'bold', color: '#ffeb3b' },
     exKo: { fontFamily: FONT_PIXEL, fontSize: 14, color: '#aaa', marginTop: 8 },
 
     // The Options Matrix
     optionBlock: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginTop: 5 },
-    optBtnV7: { width: '48%', marginBottom: 12, backgroundColor: '#0a0a14', paddingVertical: 14, borderWidth: 4, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+    optBtnV7: { width: '48%', marginBottom: 12, backgroundColor: 'rgba(0, 0, 0, 0.7)', paddingVertical: 14, borderWidth: 3, borderBottomWidth: 7, borderColor: '#fff', borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
     optBtnTextV7: { fontFamily: FONT_PIXEL, fontSize: 16, color: '#fff', textAlign: 'center', fontWeight: 'bold' },
 
-    continueBtn: { backgroundColor: '#ffeb3b', borderWidth: 4, borderColor: '#fff', paddingVertical: 15, marginTop: 10, alignItems: 'center' },
+    continueBtn: { backgroundColor: '#ffeb3b', borderWidth: 3, borderBottomWidth: 8, borderColor: '#000', borderRadius: 8, paddingVertical: 15, marginTop: 10, alignItems: 'center' },
 
     // ========================================
     // CALENDAR TAB (Quest Log)
     // ========================================
-    calendarContainer: { backgroundColor: '#0a0a14', borderWidth: 4, borderColor: '#fff', padding: 20 },
+    calendarContainer: { backgroundColor: 'rgba(0,0,0,0.85)', borderWidth: 4, borderColor: '#fff', borderRadius: 8, padding: 20 },
     calTitle: { fontFamily: FONT_PIXEL, fontSize: 24, color: '#fff', textAlign: 'center', marginBottom: 15 },
     calRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
     calHeaderCell: { flex: 1, alignItems: 'center' },
@@ -728,38 +744,38 @@ const styles = StyleSheet.create({
     calCellAttended: { backgroundColor: '#fff', borderColor: '#fff', borderWidth: 2 },
     calText: { fontFamily: FONT_PIXEL, fontSize: 16, color: '#555' },
     calTextAttended: { color: '#000', fontWeight: 'bold' },
-    calInfoCard: { backgroundColor: '#0a0a14', padding: 20, borderWidth: 4, borderColor: '#fff', marginTop: 20 },
+    calInfoCard: { backgroundColor: 'rgba(0,0,0,0.85)', padding: 20, borderWidth: 4, borderColor: '#fff', borderRadius: 8, marginTop: 20 },
 
     // ========================================
     // MODALS (Settings / Dictionary)
     // ========================================
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-    dictCard: { width: '100%', backgroundColor: '#0a0a14', borderWidth: 4, borderColor: '#fff', padding: 25 },
-    settingsCard: { width: '100%', backgroundColor: '#0a0a14', borderWidth: 4, borderColor: '#fff', padding: 25 },
+    dictCard: { width: '100%', backgroundColor: 'rgba(0,0,0,0.95)', borderWidth: 4, borderColor: '#fff', borderRadius: 8, padding: 25 },
+    settingsCard: { width: '100%', backgroundColor: 'rgba(0,0,0,0.95)', borderWidth: 4, borderColor: '#fff', borderRadius: 8, padding: 25 },
     levelRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 10 },
-    setLvlBtn: { borderWidth: 3, borderColor: '#555', paddingHorizontal: 15, paddingVertical: 8, backgroundColor: 'transparent' },
-    setLvlBtnActive: { backgroundColor: '#fff', borderColor: '#fff' },
-    goalRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#111', borderWidth: 3, borderColor: '#555', padding: 10, marginTop:10 },
-    goalBtn: { backgroundColor: '#222', paddingHorizontal: 20, paddingVertical: 10, borderWidth: 2, borderColor: '#aaa' },
+    setLvlBtn: { borderWidth: 3, borderBottomWidth: 5, borderColor: '#555', borderRadius: 6, paddingHorizontal: 15, paddingVertical: 8, backgroundColor: 'rgba(0,0,0,0.5)' },
+    setLvlBtnActive: { backgroundColor: '#ffeb3b', borderColor: '#000' },
+    goalRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#111', borderWidth: 3, borderColor: '#555', borderRadius: 6, padding: 10, marginTop:10 },
+    goalBtn: { backgroundColor: '#222', paddingHorizontal: 20, paddingVertical: 10, borderWidth: 2, borderBottomWidth: 4, borderColor: '#aaa', borderRadius: 6 },
 
     // ========================================
     // TOWN & PROFILE STYLES
     // ========================================
     townHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-    goldBox: { backgroundColor: 'rgba(17, 17, 17, 0.7)', padding: 10, borderWidth: 2, borderColor: '#fff', alignItems: 'center' },
-    shopCard: { backgroundColor: 'rgba(10, 10, 20, 0.85)', borderWidth: 4, borderColor: '#ffeb3b', padding: 25, marginTop: 10, alignItems: 'center' },
-    gachaBtn: { backgroundColor: '#00bcd4', borderWidth: 4, borderColor: '#fff', paddingVertical: 15, paddingHorizontal: 30, marginTop: 10 },
-    gachaBtnText: { fontFamily: FONT_PIXEL, fontSize: 18, color: '#fff', fontWeight: 'bold' },
+    goldBox: { backgroundColor: 'rgba(0,0,0,0.85)', padding: 10, borderWidth: 4, borderColor: '#fff', borderRadius: 8, alignItems: 'center' },
+    shopCard: { backgroundColor: 'rgba(0, 0, 0, 0.85)', borderWidth: 4, borderColor: '#fff', borderRadius: 8, padding: 25, marginTop: 10, alignItems: 'center' },
+    gachaBtn: { backgroundColor: '#ffeb3b', borderWidth: 3, borderBottomWidth: 8, borderColor: '#000', borderRadius: 8, paddingVertical: 15, paddingHorizontal: 30, marginTop: 10 },
+    gachaBtnText: { fontFamily: FONT_PIXEL, fontSize: 18, color: '#000', fontWeight: 'bold' },
 
-    profileHeaderCard: { backgroundColor: '#0a0a14', borderWidth: 4, borderColor: '#fff', padding: 15, marginBottom: 15, flexDirection: 'row' },
+    profileHeaderCard: { backgroundColor: 'rgba(0,0,0,0.85)', borderWidth: 4, borderColor: '#fff', borderRadius: 8, padding: 15, marginBottom: 15, flexDirection: 'row' },
     avatarBox: { width: 100, alignItems: 'center', justifyContent: 'center', marginRight: 15, backgroundColor: '#000', borderWidth: 2, borderColor: '#333' },
     statusBox: { flex: 1, justifyContent: 'center' },
     equipSlotSm: { marginBottom: 8, padding: 4, backgroundColor: '#111', borderWidth: 1, borderColor: '#444' },
     
-    inventoryCard: { backgroundColor: '#0a0a14', borderWidth: 4, borderColor: '#fff', padding: 15, marginBottom: 15 },
+    inventoryCard: { backgroundColor: 'rgba(0,0,0,0.85)', borderWidth: 4, borderColor: '#fff', borderRadius: 8, padding: 15, marginBottom: 15 },
     invGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
     invItemSlot: { backgroundColor: '#111', borderWidth: 2, width: '22%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center', padding: 5 },
     
-    settingsCardProfile: { backgroundColor: '#0a0a14', borderWidth: 4, borderColor: '#aaa', padding: 15, marginBottom: 15 },
+    settingsCardProfile: { backgroundColor: 'rgba(0,0,0,0.85)', borderWidth: 4, borderColor: '#aaa', borderRadius: 8, padding: 15, marginBottom: 15 },
     levelRowProfile: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 10 }
 });
