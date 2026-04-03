@@ -286,6 +286,104 @@ export const VOCAB_DATA = {
             "meaning": "읽다",
             "exJp": "新聞を読む。",
             "exKo": "신문을 읽는다."
+        },
+        {
+            "word": "来る",
+            "reading": "くる",
+            "meaning": "오다",
+            "exJp": "友達が家に来る。",
+            "exKo": "친구가 집에 온다."
+        },
+        {
+            "word": "待つ",
+            "reading": "まつ",
+            "meaning": "기다리다",
+            "exJp": "バスを待つ。",
+            "exKo": "버스를 기다린다."
+        },
+        {
+            "word": "休む",
+            "reading": "やすむ",
+            "meaning": "쉬다",
+            "exJp": "疲れたから休む。",
+            "exKo": "피곤해서 쉰다."
+        },
+        {
+            "word": "知る",
+            "reading": "しる",
+            "meaning": "알다",
+            "exJp": "あの人を知っている。",
+            "exKo": "저 사람을 안다."
+        },
+        {
+            "word": "入る",
+            "reading": "はいる",
+            "meaning": "들어가다",
+            "exJp": "お風呂に入る。",
+            "exKo": "목욕을 한다."
+        },
+        {
+            "word": "出る",
+            "reading": "でる",
+            "meaning": "나가다",
+            "exJp": "部屋を出る。",
+            "exKo": "방을 나간다."
+        },
+        {
+            "word": "立つ",
+            "reading": "たつ",
+            "meaning": "서다",
+            "exJp": "そこに立つ。",
+            "exKo": "거기에 선다."
+        },
+        {
+            "word": "座る",
+            "reading": "すわる",
+            "meaning": "앉다",
+            "exJp": "椅子に座る。",
+            "exKo": "의자에 앉는다."
+        },
+        {
+            "word": "終わる",
+            "reading": "おわる",
+            "meaning": "끝나다",
+            "exJp": "授業が終わる。",
+            "exKo": "수업이 끝난다."
+        },
+        {
+            "word": "始まる",
+            "reading": "はじまる",
+            "meaning": "시작되다",
+            "exJp": "映画が始まる。",
+            "exKo": "영화가 시작된다."
+        },
+        {
+            "word": "会う",
+            "reading": "あう",
+            "meaning": "만나다",
+            "exJp": "駅で友達に会う。",
+            "exKo": "역에서 친구를 만난다."
+        },
+        {
+            "word": "作る",
+            "reading": "つくる",
+            "meaning": "만들다",
+            "exJp": "料理を作る。",
+            "exKo": "요리를 만든다."
+        },
+        {
+            "word": "使う",
+            "reading": "つかう",
+            "meaning": "사용하다",
+            "exJp": "パソコンを使う。",
+            "exKo": "컴퓨터를 사용한다."
+        },
+        {
+            "word": "教える",
+            "reading": "おしえる",
+            "meaning": "가르치다",
+            "exJp": "日本語を教える。",
+            "exKo": "일본어를 가르친다."
         }
     ],
     "N4": [
@@ -484,6 +582,62 @@ export const VOCAB_DATA = {
             "meaning": "시간에 맞다",
             "exJp": "電車に間に合う。",
             "exKo": "전철 시간에 맞추다."
+        },
+        {
+            "word": "喜ぶ",
+            "reading": "よろこぶ",
+            "meaning": "기뻐하다",
+            "exJp": "プレゼントに喜ぶ。",
+            "exKo": "선물에 기뻐하다."
+        },
+        {
+            "word": "怒る",
+            "reading": "おこる",
+            "meaning": "화내다",
+            "exJp": "先生が怒る。",
+            "exKo": "선생님이 화낸다."
+        },
+        {
+            "word": "楽しむ",
+            "reading": "たのしむ",
+            "meaning": "즐기다",
+            "exJp": "休日を楽しむ。",
+            "exKo": "휴일을 즐긴다."
+        },
+        {
+            "word": "慣れる",
+            "reading": "なれる",
+            "meaning": "익숙해지다",
+            "exJp": "仕事に慣れる。",
+            "exKo": "일에 익숙해진다."
+        },
+        {
+            "word": "変わる",
+            "reading": "かわる",
+            "meaning": "바뀌다",
+            "exJp": "季節が変わる。",
+            "exKo": "계절이 바뀐다."
+        },
+        {
+            "word": "集める",
+            "reading": "あつめる",
+            "meaning": "모으다",
+            "exJp": "切手を集める。",
+            "exKo": "우표를 모은다."
+        },
+        {
+            "word": "思い出す",
+            "reading": "おもいだす",
+            "meaning": "생각해내다",
+            "exJp": "昔を思い出す。",
+            "exKo": "옛날을 생각해낸다."
+        },
+        {
+            "word": "頑張る",
+            "reading": "がんばる",
+            "meaning": "열심히 하다",
+            "exJp": "明日も頑張る。",
+            "exKo": "내일도 열심히 한다."
         }
     ],
     "N3": [
@@ -661,6 +815,48 @@ export const VOCAB_DATA = {
             "meaning": "기억",
             "exJp": "記憶に残る。",
             "exKo": "기억에 남는다."
+        },
+        {
+            "word": "具体的",
+            "reading": "ぐたいてき",
+            "meaning": "구체적",
+            "exJp": "具体的に説明する。",
+            "exKo": "구체적으로 설명한다."
+        },
+        {
+            "word": "可能性",
+            "reading": "かのうせい",
+            "meaning": "가능성",
+            "exJp": "成功の可能性が高い。",
+            "exKo": "성공 가능성이 높다."
+        },
+        {
+            "word": "発生",
+            "reading": "はっせい",
+            "meaning": "발생",
+            "exJp": "問題が発生する。",
+            "exKo": "문제가 발생한다."
+        },
+        {
+            "word": "提供",
+            "reading": "ていきょう",
+            "meaning": "제공",
+            "exJp": "サービスを提供する。",
+            "exKo": "서비스를 제공한다."
+        },
+        {
+            "word": "影響",
+            "reading": "えいきょう",
+            "meaning": "영향",
+            "exJp": "大きな影響を受ける。",
+            "exKo": "큰 영향을 받다."
+        },
+        {
+            "word": "責任",
+            "reading": "せきにん",
+            "meaning": "책임",
+            "exJp": "責任を取る。",
+            "exKo": "책임을 진다."
         }
     ],
     "N2": [
@@ -838,6 +1034,41 @@ export const VOCAB_DATA = {
             "meaning": "복잡",
             "exJp": "複雑な問題。",
             "exKo": "복잡한 문제."
+        },
+        {
+            "word": "客観的",
+            "reading": "きゃっかんてき",
+            "meaning": "객관적",
+            "exJp": "客観的に見る。",
+            "exKo": "객관적으로 본다."
+        },
+        {
+            "word": "主観的",
+            "reading": "しゅかんてき",
+            "meaning": "주관적",
+            "exJp": "主観的な意見。",
+            "exKo": "주관적인 의견."
+        },
+        {
+            "word": "相対的",
+            "reading": "そうたいてき",
+            "meaning": "상대적",
+            "exJp": "相対的な価値。",
+            "exKo": "상대적인 가치."
+        },
+        {
+            "word": "適切",
+            "reading": "てきせつ",
+            "meaning": "적절",
+            "exJp": "適切な処置。",
+            "exKo": "적절한 처치."
+        },
+        {
+            "word": "妥当",
+            "reading": "だとう",
+            "meaning": "타당",
+            "exJp": "妥当な判断。",
+            "exKo": "타당한 판단."
         }
     ],
     "N1": [
@@ -1003,7 +1234,7 @@ export const VOCAB_DATA = {
             "exKo": "노골적인 혐오."
         },
         {
-            "word": "些細",
+            "word": "些细",
             "reading": "ささい",
             "meaning": "사소",
             "exJp": "些細な問題。",
@@ -1015,6 +1246,34 @@ export const VOCAB_DATA = {
             "meaning": "빈번",
             "exJp": "頻繁に起こる。",
             "exKo": "빈번하게 일어난다."
+        },
+        {
+            "word": "釈明",
+            "reading": "しゃくめい",
+            "meaning": "해명",
+            "exJp": "理由を釈明する。",
+            "exKo": "이유를 해명한다."
+        },
+        {
+            "word": "巧妙",
+            "reading": "こうみょう",
+            "meaning": "교묘",
+            "exJp": "巧妙な手口。",
+            "exKo": "교묘한 수법."
+        },
+        {
+            "word": "厳密",
+            "reading": "げんみつ",
+            "meaning": "엄밀",
+            "exJp": "厳密な調査。",
+            "exKo": "엄밀한 조사."
+        },
+        {
+            "word": "執拗",
+            "reading": "しつよう",
+            "meaning": "집요",
+            "exJp": "執拗に追いかける。",
+            "exKo": "집요하게 뒤쫓다."
         }
     ]
 };

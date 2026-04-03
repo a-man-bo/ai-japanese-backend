@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import json
+
+app_code = """import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, Modal, ActivityIndicator, Platform, Animated, ImageBackground, Image } from 'react-native';
 import * as Speech from 'expo-speech';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -15,7 +17,9 @@ const ITEM_IMAGES = {
     npc_slime: require('./assets/sprites/monsters/monsters/slippery slime v01.png'),
     avatar: require('./assets/sprites/characters/base_skin_1.png'),
     bg: require('./assets/backgrounds/town_bg.png'),
-    btn: require('./assets/ui/btn_texture.png')
+    btn: require('./assets/ui/btn_texture.png'),
+    battleBg: require('./assets/tilesets/tilesets/seasonal sample (spring).png'),
+    enemy_slime: require('./assets/sprites/monsters/monsters/slippery slime v01.png')
 };
 
 const PixelButton = ({ style, onPress, disabled, children, activeOpacity }) => (
@@ -39,7 +43,7 @@ export default function App() {
     const [lastLoginTime, setLastLoginTime] = useState(Date.now());
     
     // Gacha & Town Interactive States
-    const [gachaResult, setGachaResult] = useState(null); // Array of items
+    const [gachaResult, setGachaResult] = useState(null);
     const [townDialog, setTownDialog] = useState(null);
     const [chestOpened, setChestOpened] = useState(false);
 
@@ -53,7 +57,7 @@ export default function App() {
     const [vocabIndex, setVocabIndex] = useState(0);
     
     // Feedback States
-    const [vocabFeedback, setVocabFeedback] = useState(null); // 'correct' | 'incorrect'
+    const [vocabFeedback, setVocabFeedback] = useState(null); 
     const [selectedAnswer, setSelectedAnswer] = useState(null);
     const [vocabScore, setVocabScore] = useState(0);
     const [options, setOptions] = useState([]);
@@ -61,6 +65,8 @@ export default function App() {
     // Animation
     const shakeAnim = useRef(new Animated.Value(0)).current;
     const idleAnim = useRef(new Animated.Value(0)).current;
+    const damageFlashAnim = useRef(new Animated.Value(0)).current;
+    const enemyFadeAnim = useRef(new Animated.Value(1)).current;
 
     useEffect(() => {
         const initVoices = async () => {
@@ -74,7 +80,7 @@ export default function App() {
         loadAttendance();
         loadSettings();
 
-        // Idle Anim Loop (Breathing effect for sprites 2px up and down)
+        // Idle Anim Loop
         Animated.loop(
             Animated.sequence([
                 Animated.timing(idleAnim, { toValue: -4, duration: 1000, useNativeDriver: true }),
@@ -82,7 +88,6 @@ export default function App() {
             ])
         ).start();
 
-        // Idle Gold Ticker:
         const timer = setInterval(() => {
             setGold(prev => prev + 1);
             setLastLoginTime(Date.now());
@@ -161,6 +166,7 @@ export default function App() {
         setVocabIndex(firstIdx);
         setVocabFeedback(null);
         setSelectedAnswer(null);
+        enemyFadeAnim.setValue(1);
         Speech.stop(); 
         generateOptions(firstIdx, selectedLevel);
     };
@@ -183,13 +189,12 @@ export default function App() {
                 const newAtt = { ...attendance, [today]: true };
                 setAttendance(newAtt);
                 await AsyncStorage.setItem('attendanceData', JSON.stringify(newAtt));
-                setCrystals(c => c + 2); // Daily login reward
+                setCrystals(c => c + 2); 
                 alert('일일 출석 보상으로 크리스탈 💎2개를 획득했습니다!');
             }
         } catch (e) {}
     };
 
-    // Buffer logic
     const calcGoldBoost = () => {
         let multi = 1.0;
         Object.values(equipped).forEach(item => {
@@ -200,7 +205,6 @@ export default function App() {
         return multi;
     };
 
-    // Vocab logic
     const generateOptions = (vIdx, level) => {
         const currentWord = VOCAB_DATA[level][vIdx];
         if(!currentWord) return;
@@ -221,11 +225,15 @@ export default function App() {
         
         if (isCorrect) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            
+            // FADE ENEMY
+            Animated.timing(enemyFadeAnim, { toValue: 0, duration: 400, useNativeDriver: true }).start();
+
             const newScore = vocabScore + 1;
             setVocabScore(newScore);
             Speech.speak(current.word, { language: 'ja', rate: 0.85, voice: getBestVoice() });
             
-            // Earn Gold based on buff
+            // Earn Gold
             const goldEarned = Math.floor(10 * calcGoldBoost());
             setGold(g => g + goldEarned);
 
@@ -237,14 +245,21 @@ export default function App() {
             if (newScore === 1) markAttendanceToday(); 
         } else {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            
+            // RED FLASH (Player Damage)
             Animated.sequence([
-                Animated.timing(shakeAnim, { toValue: 12, duration: 45, useNativeDriver: true }),
-                Animated.timing(shakeAnim, { toValue: -12, duration: 45, useNativeDriver: true }),
-                Animated.timing(shakeAnim, { toValue: 12, duration: 45, useNativeDriver: true }),
-                Animated.timing(shakeAnim, { toValue: -12, duration: 45, useNativeDriver: true }),
-                Animated.timing(shakeAnim, { toValue: 0, duration: 45, useNativeDriver: true })
+                Animated.timing(damageFlashAnim, { toValue: 1, duration: 50, useNativeDriver: false }),
+                Animated.timing(damageFlashAnim, { toValue: 0, duration: 300, useNativeDriver: false }),
             ]).start();
-            setGold(g => g + (vocabScore * 5)); // Base consolation
+
+            Animated.sequence([
+                Animated.timing(shakeAnim, { toValue: 15, duration: 40, useNativeDriver: true }),
+                Animated.timing(shakeAnim, { toValue: -15, duration: 40, useNativeDriver: true }),
+                Animated.timing(shakeAnim, { toValue: 15, duration: 40, useNativeDriver: true }),
+                Animated.timing(shakeAnim, { toValue: -15, duration: 40, useNativeDriver: true }),
+                Animated.timing(shakeAnim, { toValue: 0, duration: 40, useNativeDriver: true })
+            ]).start();
+            setGold(g => g + (vocabScore * 5)); 
         }
     };
 
@@ -252,6 +267,7 @@ export default function App() {
         if (vocabFeedback === 'incorrect') setVocabScore(0);
         setVocabFeedback(null);
         setSelectedAnswer(null);
+        enemyFadeAnim.setValue(1);
         Speech.stop(); 
         let nextIdx;
         const poolSize = VOCAB_DATA[selectedLevel].length;
@@ -270,7 +286,6 @@ export default function App() {
         Speech.speak(current.exJp, { language: 'ja', rate: 0.95, voice: v });
     };
 
-    // Gacha System
     const executeDraw = (mode) => {
         if (mode === 'single' && gold < 100) return alert('골드가 부족합니다! (100G 필요)');
         if (mode === 'multi' && gold < 1000) return alert('골드가 부족합니다! (1000G 필요)');
@@ -347,8 +362,7 @@ export default function App() {
         const randG = Math.floor(Math.random() * 50) + 50;
         setGold(g => g + randG);
         setCrystals(c => c + 1);
-        alert(`보물상자 오픈!
-${randG}G 와 크리스탈 💎1개를 얻었습니다.`);
+        alert(`보물상자 오픈!\n${randG}G 와 크리스탈 💎1개를 얻었습니다.`);
     };
 
     const equipItem = (item) => { setEquipped(prev => ({ ...prev, [item.type]: item })); };
@@ -374,16 +388,14 @@ ${randG}G 와 크리스탈 💎1개를 얻었습니다.`);
     return (
         <LinearGradient colors={['#050814', '#151b3a', '#1e1b40']} style={styles.container}>
             <SafeAreaView style={{flex: 1}}>
+                {/* Header (Hidden in Battles for cleaner JRPG view, or we can keep it inside towns?)
+                    Let's keep the header universally visible for resources, but maybe hide the Combo progress bar, 
+                    since combo is inside the battle screen now. 
+                */}
                 <View style={styles.header}>
                     <View style={styles.progressHeaderObj}>
                         <TouchableOpacity style={styles.iconBtn}><Text style={{fontSize:18}}>💎 <Text style={[styles.pixelFontSm, {color:'#fff'}]}>{crystals}</Text></Text></TouchableOpacity>
                         
-                        {activeTab === 'vocab' && (
-                            <View style={styles.progressBarContainer}>
-                                <View style={[styles.progressBarFill, { width: '100%' }]} />
-                                <Text style={styles.progressText}>COMBO {vocabScore}</Text>
-                            </View>
-                        )}
                         {activeTab !== 'vocab' && <View style={{flex:1}} />}
                         
                         <TouchableOpacity style={styles.iconBtn}>
@@ -394,63 +406,92 @@ ${randG}G 와 크리스탈 💎1개를 얻었습니다.`);
 
                 <Animated.View style={[styles.screenArea, { transform: [{ translateX: shakeAnim }] }]}>
                     
-                    {/* ===== VOCAB TAB ===== */}
+                    {/* ===== VOCAB (BATTLE) TAB ===== */}
                     {activeTab === 'vocab' && (
-                        <ScrollView contentContainerStyle={styles.vocabTabWrapper}>
-                            <View style={styles.vocabCard}>
-                                <View style={{flexDirection: 'row', justifyContent:'space-between', marginBottom: 5}}>
-                                    <View style={styles.levelBadge}><Text style={[styles.pixelFontSm, {color:'#fff'}]}>RANK {selectedLevel}</Text></View>
-                                    <Text style={styles.pixelFontSm}>엔카운터!</Text>
-                                </View>
-                                <Text style={styles.vocabAnswerReading}>{VOCAB_DATA[selectedLevel][vocabIndex]?.reading}</Text>
-                                <Text style={styles.vocabTargetJapanese}>{VOCAB_DATA[selectedLevel][vocabIndex]?.word}</Text>
+                        <View style={{flex:1}}>
+                            {/* Damage Flash Overlay */}
+                            <Animated.View style={{position:'absolute', top:0, left:0, right:0, bottom:0, backgroundColor: 'rgba(255,0,0,0.6)', zIndex: 10, opacity: damageFlashAnim, pointerEvents: 'none'}} />
+                            
+                            {/* Battle Field (Top 60%) */}
+                            <ImageBackground source={ITEM_IMAGES.battleBg} style={{flex: 6, resizeMode: 'cover', justifyContent:'center', alignItems:'center'}}>
                                 
+                                <View style={{position:'absolute', top: 15, left: 15, backgroundColor:'rgba(0,0,0,0.8)', paddingHorizontal: 15, paddingVertical: 5, borderRadius: 5, borderWidth: 2, borderColor:'#ffeb3b'}}>
+                                    <Text style={[styles.pixelFontLg, {color:'#ffeb3b', fontSize: 20}]}>COMBO {vocabScore}</Text>
+                                    <Text style={[styles.pixelFontSm, {color:'#fff', textAlign:'center'}]}>RANK {selectedLevel}</Text>
+                                </View>
+
+                                {/* Enemy Sprite & Target Word */}
+                                {vocabFeedback === null && (
+                                    <Animated.View style={{alignItems:'center', opacity: enemyFadeAnim, transform: [{translateY: idleAnim}]}}>
+                                        {/* HP Bar */}
+                                        <View style={{flexDirection:'row', marginBottom: 5, width: 80, height: 10, backgroundColor:'#000', borderWidth:2, borderColor:'#fff'}}>
+                                            <View style={{backgroundColor:'#e91e63', width:'100%', height:'100%'}}/>
+                                        </View>
+                                        
+                                        <View style={{backgroundColor:'rgba(0,0,0,0.7)', paddingHorizontal:20, paddingVertical:10, borderRadius:8, borderWidth:2, borderColor:'#fff', marginBottom: 15}}>
+                                            <Text style={[styles.pixelFontSm, {color:'#aaa', textAlign:'center'}]}>{VOCAB_DATA[selectedLevel][vocabIndex]?.reading}</Text>
+                                            <Text style={{fontSize: 42, fontWeight:'bold', color:'#fff', textAlign:'center'}}>{VOCAB_DATA[selectedLevel][vocabIndex]?.word}</Text>
+                                        </View>
+
+                                        <View style={{width: 80, height: 80, overflow:'hidden'}}>
+                                            <Image source={ITEM_IMAGES.enemy_slime} style={{width:240, height:320, left:-80, top:0, position:'absolute', resizeMode:'stretch'}} />
+                                        </View>
+                                    </Animated.View>
+                                )}
+
+                                {/* Victory / Loot Box (After Defeat) */}
                                 {vocabFeedback === 'correct' && (
-                                    <>
+                                    <View style={{backgroundColor:'rgba(0,0,0,0.85)', borderWidth:4, borderColor:'#32cd32', borderRadius:10, padding:20, width:'85%', alignItems:'center'}}>
+                                        <Text style={[styles.pixelFontLg, {color:'#32cd32', fontSize: 22, marginBottom:10}]}>몬스터 처치 완료!</Text>
+                                        <Text style={{fontSize: 32, fontWeight:'bold', color:'#fff', marginBottom:5}}>{VOCAB_DATA[selectedLevel][vocabIndex]?.word}</Text>
+                                        <Text style={[styles.pixelFontSm, {color:'#ffeb3b', marginBottom: 15, fontSize: 18}]}>{VOCAB_DATA[selectedLevel][vocabIndex]?.meaning}</Text>
+                                        
                                         <TouchableOpacity style={styles.ttsBtn} onPress={readLoudly}>
-                                            <Text style={[styles.pixelFontSm, {color:'#000'}]}>🔊 재생 마법</Text>
+                                            <Text style={[styles.pixelFontSm, {color:'#000'}]}>🔊 발음 듣기</Text>
                                         </TouchableOpacity>
-                                        <View style={styles.exampleBox}>
-                                            <Text style={styles.exampleBadge}>실전 예문</Text>
-                                            <View style={{marginTop: 5}}>
-                                                {renderExampleBolded(VOCAB_DATA[selectedLevel][vocabIndex]?.exJp, VOCAB_DATA[selectedLevel][vocabIndex]?.word)}
-                                            </View>
+                                        
+                                        <View style={{width:'100%', backgroundColor:'rgba(255,255,255,0.1)', padding:10, borderRadius:6}}>
+                                            <Text style={[styles.pixelFontSm, {color:'#fff', marginBottom: 5}]}>[ 예문 분석 ]</Text>
+                                            {renderExampleBolded(VOCAB_DATA[selectedLevel][vocabIndex]?.exJp, VOCAB_DATA[selectedLevel][vocabIndex]?.word)}
                                             <Text style={styles.exKo}>{VOCAB_DATA[selectedLevel][vocabIndex]?.exKo}</Text>
                                         </View>
+                                    </View>
+                                )}
+                            </ImageBackground>
+
+                            {/* Command Box (Bottom 40%) */}
+                            <View style={{flex: 4, backgroundColor:'#000', borderWidth: 6, borderColor:'#fff', padding: 15, justifyContent:'space-around'}}>
+                                {vocabFeedback === null ? (
+                                    <>
+                                        <Text style={[styles.pixelFontLg, {color:'#fff', marginBottom: 15, fontSize: 18, textAlign:'center'}]}>▶ 뜻을 맞춰 공략하라!</Text>
+                                        <View style={{flexDirection:'row', flexWrap:'wrap', justifyContent:'space-between'}}>
+                                            {options.map((opt, i) => (
+                                                <TouchableOpacity key={i} style={{width:'48%', paddingVertical:15, marginBottom:10, borderWidth:2, borderColor:'#555', borderRadius:8, backgroundColor:'#111', alignItems:'center'}} onPress={() => handleSelectOption(opt)} activeOpacity={0.7}>
+                                                    <Text style={[styles.pixelFontLg, {color:'#fff', fontSize: 16}]}>{opt}</Text>
+                                                </TouchableOpacity>
+                                            ))}
+                                        </View>
                                     </>
+                                ) : (
+                                    <View style={{flex:1, justifyContent:'center', alignItems:'center'}}>
+                                        <Text style={[styles.pixelFontLg, {color: vocabFeedback==='correct'?'#32cd32':'#ff1e1e', fontSize:22, marginBottom:20}]}>
+                                            {vocabFeedback==='correct' ? '전투 승리!' : '파티가 전멸했다 (콤보 리셋)'}
+                                        </Text>
+                                        <TouchableOpacity style={[styles.continueBtn, {width:'80%'}]} onPress={nextVocab}>
+                                            <Text style={[styles.pixelFontLgBtn, {color:'#000', fontSize:20}]}>
+                                                {vocabFeedback==='correct' ? '▶ 다음 마물 탐색' : '▶ 묘지에서 부활하여 재도전'}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </View>
                                 )}
                             </View>
-
-                            <View style={styles.optionBlock}>
-                                {options.map((opt, i) => {
-                                    const isCorrectOpt = opt === VOCAB_DATA[selectedLevel][vocabIndex]?.meaning;
-                                    let btnStyle = styles.optBtnV7; let textStyle = styles.optBtnTextV7;
-                                    if (vocabFeedback !== null) {
-                                        if (isCorrectOpt) { btnStyle = [styles.optBtnV7, {backgroundColor: '#32cd32', borderColor: '#000'}]; textStyle = [styles.optBtnTextV7, {color: '#000'}]; } 
-                                        else if (vocabFeedback === 'incorrect' && opt === selectedAnswer) { btnStyle = [styles.optBtnV7, {backgroundColor: '#ff1e1e', borderColor: '#000'}]; textStyle = [styles.optBtnTextV7, {color: '#fff'}]; } 
-                                        else { btnStyle = [styles.optBtnV7, {backgroundColor: 'transparent', borderColor: '#444'}]; textStyle = [styles.optBtnTextV7, {color: '#666'}]; }
-                                    }
-                                    return (
-                                        <PixelButton key={i} style={btnStyle} disabled={vocabFeedback !== null} onPress={() => handleSelectOption(opt)}>
-                                            <Text style={textStyle}>{opt}</Text>
-                                        </PixelButton>
-                                    );
-                                })}
-                            </View>
-
-                            {vocabFeedback !== null && (
-                                <PixelButton style={styles.continueBtn} onPress={nextVocab}>
-                                    <Text style={[styles.pixelFontLgBtn, {color:'#000'}]}>{vocabFeedback === 'correct' ? '▶ 공격 계속! (콤보 UP)' : '▶ 부활하여 다시 도전'}</Text>
-                                </PixelButton>
-                            )}
-                        </ScrollView>
+                        </View>
                     )}
 
                     {/* ===== TOWN TAB ===== */}
                     {activeTab === 'town' && (
                         <View style={styles.townMapContainer}>
                             <ImageBackground source={ITEM_IMAGES.bg} style={styles.townMapBg} imageStyle={{resizeMode: 'cover'}}>
-                                
                                 <View style={styles.topResourceHud}>
                                     <View style={styles.townLevelBadge}>
                                         <Text style={[styles.pixelFontLg, {color:'#fff'}]}>Lv.1</Text>
@@ -496,7 +537,6 @@ ${randG}G 와 크리스탈 💎1개를 얻었습니다.`);
                                         <Text style={[styles.pixelFontLg, {color:'#fff', fontWeight:'bold', fontSize: 18}]}>▶ 토벌(학습) 출발</Text>
                                     </PixelButton>
                                 </View>
-
                             </ImageBackground>
                         </View>
                     )}
@@ -632,10 +672,7 @@ const styles = StyleSheet.create({
     
     progressHeaderObj: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     iconBtn: { padding: 5, paddingHorizontal: 10 },
-    progressBarContainer: { flex: 1, backgroundColor: '#000', borderWidth: 3, borderBottomWidth: 6, borderColor: '#fff', borderRadius: 8, height: 26, marginHorizontal: 10, overflow: 'hidden', justifyContent: 'center'},
-    progressBarFill: { height: '100%', backgroundColor: '#32cd32', borderRightWidth: 3, borderColor: '#000' },
-    progressText: { position: 'absolute', alignSelf: 'center', fontFamily: FONT_PIXEL, fontSize: 13, color: '#fff' },
-
+    
     screenArea: { flex: 1 },
     
     bottomNav: { flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.9)', borderTopWidth: 4, borderColor: '#fff', paddingVertical: 8, paddingHorizontal: 5 },
@@ -644,27 +681,14 @@ const styles = StyleSheet.create({
     navText: { fontFamily: FONT_PIXEL, fontSize: 14, color: '#aaa' },
     navTextActive: { color: '#000', fontWeight: 'bold' },
 
-    vocabTabWrapper: { padding: 20, flexGrow:1, paddingBottom: 150 },
-    vocabCard: { backgroundColor: 'rgba(0, 0, 0, 0.85)', borderWidth: 4, borderColor: '#fff', borderRadius: 8, padding: 20, marginBottom: 15, minHeight: 180 },
-    levelBadge: { backgroundColor: '#212250', paddingHorizontal: 10, paddingVertical: 4, borderWidth: 2, borderColor: '#fff', borderRadius: 4 },
     pixelFontSm: { fontFamily: FONT_PIXEL, fontSize: 14, color: '#bbb' },
     pixelFontLg: { fontFamily: FONT_PIXEL, fontSize: 16, color: '#fff' },
     pixelFontLgBtn: { fontFamily: FONT_PIXEL, fontSize: 18, color: '#fff' },
 
-    vocabTargetJapanese: { fontSize: 28, fontWeight: 'bold', color: '#fff', textAlign: 'center', marginVertical: 8 },
-    vocabAnswerReading: { fontFamily: FONT_PIXEL, fontSize: 16, color: '#aaa', textAlign: 'center', marginTop: 5 },
-    
-    ttsBtn: { alignSelf: 'flex-end', padding: 8, backgroundColor: '#ffeb3b', borderWidth: 3, borderBottomWidth: 5, borderColor: '#000', borderRadius: 6, marginBottom: 10 },
-
-    exampleBox: { marginTop: 10, backgroundColor: 'rgba(0,0,0,0.5)', padding: 15, borderWidth: 2, borderColor: '#555', borderRadius: 6 },
-    exampleBadge: { alignSelf: 'flex-start', fontFamily: FONT_PIXEL, fontSize: 12, backgroundColor: '#fff', color: '#000', paddingHorizontal: 6, paddingVertical: 2, marginBottom: 5, borderRadius: 4 },
+    ttsBtn: { padding: 8, backgroundColor: '#ffeb3b', borderWidth: 3, borderBottomWidth: 5, borderColor: '#000', borderRadius: 6, marginBottom: 15 },
     exJpText: { fontSize: 15, color: '#fff', lineHeight: 22, fontWeight: '500' },
     exJpBold: { fontSize: 16, fontWeight: 'bold', color: '#ffeb3b' },
     exKo: { fontFamily: FONT_PIXEL, fontSize: 14, color: '#aaa', marginTop: 8 },
-
-    optionBlock: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginTop: 5 },
-    optBtnV7: { width: '48%', marginBottom: 12, paddingVertical: 14, borderWidth: 3, borderBottomWidth: 7, borderColor: '#fff', borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-    optBtnTextV7: { fontFamily: FONT_PIXEL, fontSize: 16, color: '#fff', textAlign: 'center', fontWeight: 'bold' },
 
     continueBtn: { borderWidth: 3, borderBottomWidth: 8, borderColor: '#000', borderRadius: 8, paddingVertical: 15, marginTop: 10, alignItems: 'center', backgroundColor: '#fff' },
 
@@ -698,3 +722,9 @@ const styles = StyleSheet.create({
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center' },
     dictCard: { width: '85%', backgroundColor: '#222', borderWidth: 4, borderColor: '#fff', borderRadius: 8, padding: 25, alignItems: 'center' },
 });
+"""
+
+with open("c:\\Users\\kevin\\Desktop\\ai-japanese-app\\app-ui\\rewrite_app.py", "w", encoding="utf-8") as f:
+    f.write(app_code)
+
+print("rewrite_app.py successfully created with the new Battle Layout.")
