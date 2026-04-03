@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, Modal, ActivityIndicator, Platform, Animated, ImageBackground } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, Modal, ActivityIndicator, Platform, Animated, ImageBackground, Image } from 'react-native';
 import * as Speech from 'expo-speech';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFonts, DotGothic16_400Regular } from '@expo-google-fonts/dotgothic16';
@@ -51,6 +51,13 @@ const VOCAB_DATA = {
 };
 
 const ALL_WORDS = Object.values(VOCAB_DATA).flat();
+
+const PixelButton = ({ style, onPress, disabled, children, activeOpacity }) => (
+    <TouchableOpacity style={[style, { overflow: 'hidden' }]} onPress={onPress} disabled={disabled} activeOpacity={activeOpacity || 0.8}>
+        <ImageBackground source={require('./assets/ui/btn_texture.png')} style={StyleSheet.absoluteFill} imageStyle={{resizeMode: 'cover', opacity: 0.9}} />
+        {children}
+    </TouchableOpacity>
+);
 
 export default function App() {
     let [fontsLoaded] = useFonts({ DotGothic16_400Regular });
@@ -119,11 +126,14 @@ export default function App() {
 
     useEffect(() => { resetVocabSession(); }, [selectedLevel]);
 
-    const getRandomVoice = () => {
-        if(voices && voices.length > 0) {
-            return voices[Math.floor(Math.random() * voices.length)].identifier;
+    const getBestVoice = () => {
+        if (!voices || voices.length === 0) return undefined;
+        const preferredVoices = ['kyoko', 'ja-jp-x-jab-network', 'female', 'ja-jp-language'];
+        for (const pref of preferredVoices) {
+            const found = voices.find(v => v.identifier.toLowerCase().includes(pref) || v.name.toLowerCase().includes(pref));
+            if (found) return found.identifier;
         }
-        return undefined;
+        return voices[0].identifier;
     };
 
     const playFxAndAnimate = async (isCorrect) => {
@@ -188,11 +198,12 @@ export default function App() {
 
     const resetVocabSession = () => {
         setVocabScore(0);
-        setVocabIndex(0);
+        let firstIdx = Math.floor(Math.random() * VOCAB_DATA[selectedLevel].length);
+        setVocabIndex(firstIdx);
         setVocabFeedback(null);
         setSelectedAnswer(null);
         Speech.stop(); 
-        generateOptions(0, selectedLevel);
+        generateOptions(firstIdx, selectedLevel);
     };
 
     const getTodayDateString = () => {
@@ -243,7 +254,7 @@ export default function App() {
         if (isCorrect) {
             const newScore = vocabScore + 1;
             setVocabScore(newScore);
-            Speech.speak(current.word, { language: 'ja', rate: 0.85, voice: getRandomVoice() });
+            Speech.speak(current.word, { language: 'ja', rate: 0.85, voice: getBestVoice() });
             
             if (newScore === 1) markAttendanceToday(); 
         } else {
@@ -264,7 +275,17 @@ export default function App() {
         setVocabFeedback(null);
         setSelectedAnswer(null);
         Speech.stop(); 
-        let nextIdx = (vocabIndex + 1) % VOCAB_DATA[selectedLevel].length;
+        
+        let nextIdx;
+        const poolSize = VOCAB_DATA[selectedLevel].length;
+        if (poolSize > 1) {
+            do {
+                nextIdx = Math.floor(Math.random() * poolSize);
+            } while (nextIdx === vocabIndex);
+        } else {
+            nextIdx = 0;
+        }
+        
         setVocabIndex(nextIdx);
         generateOptions(nextIdx, selectedLevel);
     };
@@ -272,7 +293,7 @@ export default function App() {
     const readLoudly = () => {
         const current = VOCAB_DATA[selectedLevel][vocabIndex];
         Speech.stop();
-        const v = getRandomVoice();
+        const v = getBestVoice();
         Speech.speak(current.word, { language: 'ja', rate: 0.85, voice: v });
         Speech.speak(current.exJp, { language: 'ja', rate: 0.95, voice: v });
     };
@@ -462,19 +483,19 @@ export default function App() {
                                     }
 
                                     return (
-                                        <TouchableOpacity key={i} style={btnStyle} disabled={vocabFeedback !== null} onPress={() => handleSelectOption(opt)}>
+                                        <PixelButton key={i} style={btnStyle} disabled={vocabFeedback !== null} onPress={() => handleSelectOption(opt)}>
                                             <Text style={textStyle}>{opt}</Text>
-                                        </TouchableOpacity>
+                                        </PixelButton>
                                     );
                                 })}
                             </View>
 
                             {vocabFeedback !== null && (
-                                <TouchableOpacity style={styles.continueBtn} onPress={nextVocab}>
+                                <PixelButton style={styles.continueBtn} onPress={nextVocab}>
                                     <Text style={[styles.pixelFontLgBtn, {color:'#000'}]}>
                                         {vocabFeedback === 'correct' ? '▶ 공격 계속! (콤보 UP)' : '▶ 부활하여 다시 도전'}
                                     </Text>
-                                </TouchableOpacity>
+                                </PixelButton>
                             )}
                         </ScrollView>
                     )}
@@ -482,7 +503,7 @@ export default function App() {
                     {/* ===== TOWN TAB ===== */}
                     {activeTab === 'town' && (
                         <View style={styles.townMapContainer}>
-                            <ImageBackground source={require('./assets/town_bg.png')} style={styles.townMapBg} imageStyle={{resizeMode: 'cover'}}>
+                            <ImageBackground source={require('./assets/backgrounds/town_bg.png')} style={styles.townMapBg} imageStyle={{resizeMode: 'cover'}}>
                                 
                                 {/* Top HUD */}
                                 <View style={styles.topResourceHud}>
@@ -499,13 +520,13 @@ export default function App() {
                                 {/* Absolute Map Buildings */}
                                 {/* 1. Castle / Info */}
                                 <TouchableOpacity style={[styles.mapBuilding, {top: '15%', left: '10%'}]} onPress={() => setActiveTab('profile')}>
-                                    <Text style={styles.buildingIcon}>🏰</Text>
+                                    <Image source={require('./assets/ui/icon_castle.png')} style={{width: 64, height: 64, resizeMode: 'contain'}} />
                                     <View style={styles.buildingLabel}><Text style={[styles.pixelFontSm, {color:'#fff'}]}>내 거점</Text></View>
                                 </TouchableOpacity>
 
                                 {/* 2. Shop */}
                                 <TouchableOpacity style={[styles.mapBuilding, {top: '40%', right: '15%'}]} onPress={drawItem}>
-                                    <Text style={styles.buildingIcon}>🛍️</Text>
+                                    <Image source={require('./assets/ui/icon_shop.png')} style={{width: 64, height: 64, resizeMode: 'contain'}} />
                                     <View style={styles.buildingLabel}><Text style={[styles.pixelFontSm, {color:'#fff'}]}>장비 뽑기</Text></View>
                                     <View style={styles.buildingCostBadge}><Text style={[styles.pixelFontSm, {color:'#ffeb3b', fontSize: 10}]}>100G</Text></View>
                                 </TouchableOpacity>
@@ -520,25 +541,25 @@ export default function App() {
                                 {/* Bottom HUD Layout */}
                                 <View style={styles.bottomMapNav}>
                                     <View style={styles.bottomMapLeftSlots}>
-                                        <TouchableOpacity style={styles.mapSlotBtn} onPress={() => setActiveTab('profile')}>
+                                        <PixelButton style={styles.mapSlotBtn} onPress={() => setActiveTab('profile')}>
                                             <Text style={styles.mapSlotIcon}>👤</Text>
                                             <Text style={styles.mapSlotText}>거점 정보</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity style={styles.mapSlotBtn} onPress={drawItem}>
+                                        </PixelButton>
+                                        <PixelButton style={styles.mapSlotBtn} onPress={drawItem}>
                                             <Text style={styles.mapSlotIcon}>⚔️</Text>
                                             <Text style={styles.mapSlotText}>장비 뽑기</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity style={styles.mapSlotBtn} onPress={() => alert('누적된 자원을 수확했습니다!')}>
+                                        </PixelButton>
+                                        <PixelButton style={styles.mapSlotBtn} onPress={() => alert('누적된 자원을 수확했습니다!')}>
                                             <Text style={styles.mapSlotIcon}>🪙</Text>
                                             <Text style={styles.mapSlotText}>보상 수확</Text>
-                                        </TouchableOpacity>
+                                        </PixelButton>
                                     </View>
                                     
                                     {/* Big Blue Button for Combat */}
-                                    <TouchableOpacity style={styles.bigActionBtn} onPress={() => setActiveTab('vocab')}>
+                                    <PixelButton style={styles.bigActionBtn} onPress={() => setActiveTab('vocab')}>
                                         <Text style={[styles.pixelFontLg, {color:'#fff', fontWeight:'bold', fontSize: 18}]}>▶ 전투</Text>
                                         <Text style={[styles.pixelFontSm, {color:'#cceeff', marginTop: 2}]}>진입하기</Text>
-                                    </TouchableOpacity>
+                                    </PixelButton>
                                 </View>
 
                             </ImageBackground>
@@ -550,17 +571,19 @@ export default function App() {
                         <ScrollView contentContainerStyle={{padding: 20, paddingBottom: 150}}>
                             {/* JRPG Status View */}
                             <View style={styles.profileHeaderCard}>
-                                <View style={styles.avatarBox}>
-                                    <Text style={{fontSize: 60}}>{equipped.hat?.emoji || '🦲'}</Text>
-                                    <View style={{flexDirection:'row', alignItems:'center'}}>
-                                        <Text style={{fontSize: 26}}>{equipped.glasses?.emoji || '👁️'}</Text>
-                                        <Text style={{fontSize: 26}}>👃</Text>
-                                    </View>
-                                    <Text style={{fontSize: 50}}>{equipped.top?.emoji || '👕'}</Text>
-                                    <View style={{flexDirection:'row'}}>
-                                        <Text style={{fontSize: 30}}>{equipped.bottom?.emoji || '👖'}</Text>
-                                        <Text style={{fontSize: 30}}>{equipped.shoes?.emoji || '👣'}</Text>
-                                    </View>
+                                <View style={[styles.avatarBox, {overflow: 'hidden'}]}>
+                                    {/* Sprite Crop (Assumes RPG Maker format: ~9 cols, ~8 rows). Scaling height/width to zoom in on a single top-leftish character. */}
+                                    <Image 
+                                        source={require('./assets/sprites/characters/base_skin_1.png')} 
+                                        style={{
+                                            width: '900%', 
+                                            height: '800%', 
+                                            position: 'absolute', 
+                                            top: 0, 
+                                            left: '-100%', // shifts 1 column to get the idle stance
+                                            resizeMode: 'stretch'
+                                        }} 
+                                    />
                                 </View>
                                 <View style={styles.statusBox}>
                                     <Text style={[styles.pixelFontLg, {fontSize: 20, color:'#ffeb3b', marginBottom: 5}]}>용사 (LV.{Math.floor(gold/100) + 1})</Text>
@@ -750,8 +773,8 @@ const styles = StyleSheet.create({
     vocabCard: { backgroundColor: 'rgba(0, 0, 0, 0.85)', borderWidth: 4, borderColor: '#fff', borderRadius: 8, padding: 20, marginBottom: 15, minHeight: 180 },
     levelBadge: { backgroundColor: '#212250', paddingHorizontal: 10, paddingVertical: 4, borderWidth: 2, borderColor: '#fff', borderRadius: 4 },
     pixelFontSm: { fontFamily: FONT_PIXEL, fontSize: 14, color: '#bbb' },
-    pixelFontLg: { fontFamily: FONT_PIXEL, fontSize: 16, color: '#fff' },
-    pixelFontLgBtn: { fontFamily: FONT_PIXEL, fontSize: 18, color: '#000' },
+    pixelFontLg: { fontFamily: FONT_PIXEL, fontSize: 16, color: '#fff', textShadowColor: '#000', textShadowOffset: {width: 1, height: 1}, textShadowRadius: 1 },
+    pixelFontLgBtn: { fontFamily: FONT_PIXEL, fontSize: 18, color: '#fff', textShadowColor: '#000', textShadowOffset: {width: 2, height: 2}, textShadowRadius: 1 },
 
     vocabTargetJapanese: { fontSize: 28, fontWeight: 'bold', color: '#fff', textAlign: 'center', marginVertical: 8 },
     vocabAnswerReading: { fontFamily: FONT_PIXEL, fontSize: 16, color: '#aaa', textAlign: 'center', marginTop: 5 },
@@ -766,10 +789,10 @@ const styles = StyleSheet.create({
 
     // The Options Matrix
     optionBlock: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginTop: 5 },
-    optBtnV7: { width: '48%', marginBottom: 12, backgroundColor: 'rgba(0, 0, 0, 0.7)', paddingVertical: 14, borderWidth: 3, borderBottomWidth: 7, borderColor: '#fff', borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-    optBtnTextV7: { fontFamily: FONT_PIXEL, fontSize: 16, color: '#fff', textAlign: 'center', fontWeight: 'bold' },
+    optBtnV7: { width: '48%', marginBottom: 12, paddingVertical: 14, borderWidth: 3, borderBottomWidth: 7, borderColor: '#fff', borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+    optBtnTextV7: { fontFamily: FONT_PIXEL, fontSize: 16, color: '#fff', textAlign: 'center', fontWeight: 'bold', textShadowColor: '#000', textShadowOffset: {width: 2, height: 2}, textShadowRadius: 1 },
 
-    continueBtn: { backgroundColor: '#ffeb3b', borderWidth: 3, borderBottomWidth: 8, borderColor: '#000', borderRadius: 8, paddingVertical: 15, marginTop: 10, alignItems: 'center' },
+    continueBtn: { borderWidth: 3, borderBottomWidth: 8, borderColor: '#000', borderRadius: 8, paddingVertical: 15, marginTop: 10, alignItems: 'center' },
 
     // ========================================
     // CALENDAR TAB (Quest Log)
@@ -816,11 +839,11 @@ const styles = StyleSheet.create({
 
     bottomMapNav: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', padding: 10, paddingBottom: Platform.OS === 'ios' ? 25 : 10, backgroundColor: 'rgba(0,0,0,0.6)', borderTopWidth: 2, borderColor: '#555', alignItems: 'flex-end', zIndex: 20 },
     bottomMapLeftSlots: { flex: 1, flexDirection: 'row', justifyContent: 'space-between', paddingRight: 15 },
-    mapSlotBtn: { flex: 1, aspectRatio: 1, backgroundColor: 'rgba(30, 30, 40, 0.9)', borderWidth: 2, borderBottomWidth: 4, borderColor: '#888', borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginHorizontal: 4 },
+    mapSlotBtn: { flex: 1, aspectRatio: 1, backgroundColor: 'rgba(30, 30, 40, 0.9)', borderWidth: 3, borderBottomWidth: 6, borderRightWidth: 6, borderColor: '#000', borderTopColor: '#555', borderLeftColor: '#555', borderRadius: 0, alignItems: 'center', justifyContent: 'center', marginHorizontal: 4 },
     mapSlotIcon: { fontSize: 24, marginBottom: 4 },
-    mapSlotText: { fontFamily: FONT_PIXEL, fontSize: 10, color: '#ddd' },
+    mapSlotText: { fontFamily: FONT_PIXEL, fontSize: 10, color: '#fff', textShadowColor: '#000', textShadowOffset: {width: 1, height: 1}, textShadowRadius: 1 },
 
-    bigActionBtn: { width: 100, height: 60, backgroundColor: '#0055ff', borderWidth: 3, borderBottomWidth: 6, borderColor: '#000', borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+    bigActionBtn: { width: 100, height: 60, borderWidth: 3, borderBottomWidth: 8, borderRightWidth: 8, borderColor: '#000', borderTopColor: '#aaa', borderLeftColor: '#aaa', borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
 
     profileHeaderCard: { backgroundColor: 'rgba(0,0,0,0.85)', borderWidth: 4, borderColor: '#fff', borderRadius: 8, padding: 15, marginBottom: 15, flexDirection: 'row' },
     avatarBox: { width: 100, alignItems: 'center', justifyContent: 'center', marginRight: 15, backgroundColor: '#000', borderWidth: 2, borderColor: '#333' },
